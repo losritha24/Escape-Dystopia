@@ -1,0 +1,6 @@
+{
+  "name": "hollow-scouts",
+  "private": true,
+  "type": "module",
+  "description": "Browser prototype. Open index.html through a local static server."
+}

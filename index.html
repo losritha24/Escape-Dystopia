@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hollow Scouts</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app">
+    <section id="screen-brief" class="screen" aria-labelledby="brief-title"></section>
+    <section id="screen-prepare" class="screen hidden" aria-labelledby="prepare-title"></section>
+    <section id="screen-run" class="screen hidden" aria-label="Surface expedition">
+      <div class="run-layout">
+        <div class="stage">
+          <canvas id="view" width="960" height="640" aria-label="Surface and Hollow map"></canvas>
+        </div>
+        <aside id="hud" aria-live="polite"></aside>
+      </div>
+    </section>
+    <section id="screen-end" class="screen hidden" aria-labelledby="end-title"></section>
+    <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div id="modal-card" class="modal-card"></div>
+    </div>
+  </div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
