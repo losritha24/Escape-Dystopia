@@ -107,21 +107,80 @@ function renderPrepare(game, hooks) {
           <p class="small muted" style="margin:6px 0 0">${left} left to pack</p>
         </div>
       </div>
-      <p class="muted">Click a kit to pack it. You cannot carry the whole list. The Hollow has to live with what you leave behind.</p>
+      <p class="muted">Click a kit to pack it. Each one answers a different problem underground. Twelve scrap is not enough for every problem.</p>
+      <div class="panel places">
+        <h3>The floors and the stops</h3>
+        <p class="small muted">The Hollow is three floors, one under the next. A kit works only when the right scout is standing at the right stop.</p>
+        <p class="place-label">Floors</p>
+        <dl class="place-list floors">
+          <div class="place">
+            <dt>Concourse</dt>
+            <dd>The top floor, nearest the shaft. People pass through here, and the Directorate patrol walks this floor.</dd>
+          </div>
+          <div class="place">
+            <dt>Sump Ward</dt>
+            <dd>The middle neighborhood. Sewage collects here, and one flood can cut it off from the rest of the Hollow. The clinic is on this floor.</dd>
+          </div>
+          <div class="place">
+            <dt>Deepworks</dt>
+            <dd>The bottom floor, where the work is done. Filters, lamps, and fuel are built here. The bunks never see daylight.</dd>
+          </div>
+        </dl>
+        <p class="place-label">Stops</p>
+        <dl class="place-list">
+          <div class="place">
+            <dt>Concourse relay</dt>
+            <dd>Rook's listening post on the Concourse. Shown as Relay on the map. Send the blackout chimes here. The patrol can see him.</dd>
+          </div>
+          <div class="place">
+            <dt>Patrol corridor</dt>
+            <dd>A hallway on the Concourse that Mara crosses. Shown as Corridor. The patrol can see her. She cannot use a kit while she is only passing through.</dd>
+          </div>
+          <div class="place">
+            <dt>Clinic</dt>
+            <dd>Mara's clinic on the Sump Ward. Send the clock kit here so she can count the real lung cases and treat people on that floor.</dd>
+          </div>
+          <div class="place">
+            <dt>Flood gate</dt>
+            <dd>The gate holding sewage out of the old tunnels, on the Sump Ward. Send the bulkhead plates to Mara or Dex while they are standing here.</dd>
+          </div>
+          <div class="place">
+            <dt>Evac wall</dt>
+            <dd>The evacuation board on the Sump Ward. Shown as Evac. If Rook reads your surface readings here, he writes down a real route up.</dd>
+          </div>
+          <div class="place">
+            <dt>Workshop</dt>
+            <dd>Dex's shop in Deepworks. Send the filter, the sunlight lamps, or the outpost test here.</dd>
+          </div>
+          <div class="place">
+            <dt>Waste pit</dt>
+            <dd>The fuel still in Deepworks. Shown as Waste. After Dex seals the flood, he comes here and turns the trapped waste into fuel.</dd>
+          </div>
+          <div class="place">
+            <dt>Deep drop</dt>
+            <dd>A ladder down into Deepworks. Shown as Drop. Rook can receive a message here. He marks the route only from the evac wall.</dd>
+          </div>
+          <div class="place">
+            <dt>In transit</dt>
+            <dd>The scout is walking between stops. They cannot use a kit until they arrive.</dd>
+          </div>
+        </dl>
+        <p class="small muted">The Relay Spine is the antenna on the surface, not a room underground. Stand there and press E to send a message down to one of these stops.</p>
+      </div>
       <div class="gear-grid">${cards}</div>
       <div class="cols">
         <div class="panel">
           <h3>Who is moving under you</h3>
           <div class="routes">${routes}</div>
-          <p class="small muted">Patrol sweeps the Concourse for six seconds out of every twenty. Rook's relay and Mara's corridor are on that floor.</p>
+          <p class="small muted">The patrol walks the Concourse for six seconds out of every twenty. If Rook is at the relay, or Mara is in the corridor, a message on their screen gets them caught.</p>
         </div>
         <div class="panel">
           <h3>Windows you can plan on</h3>
           <ul>
-            <li>A grid blackout hits at 0:46. Chimes let the levels hold. Without them, scouts freeze and the power drops.</li>
-            <li>The sump surges at 1:12 unless the flood gate is already sealed.</li>
-            <li>You get ${BURNS} burns. A wiped message is gone. A message read under a patrol takes the scout with it.</li>
-            <li>Move with A and D. Hold E to sample. E at the relay opens a burn. E twice at the shaft ends the run.</li>
+            <li>At 0:46 the power cuts with no warning. Chimes let every level hear it coming. Without them, the lights die and the scouts freeze.</li>
+            <li>At 1:12 the flood rises again unless the gate is already sealed. A sealed gate keeps that neighborhood open.</li>
+            <li>You get ${BURNS} messages. Each one disappears after a few seconds. If a patrol sees it on a scout's screen, that scout is caught.</li>
+            <li>Move with A and D. Hold E to sample. E at the Relay Spine, the surface antenna, opens a burn. E twice at the shaft ends the run.</li>
           </ul>
         </div>
       </div>

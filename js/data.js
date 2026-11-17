@@ -39,43 +39,43 @@ export const GEAR = [
     id: "breather",
     name: "Breather suit",
     cost: 3,
-    blurb: "Slows surface toxicity and softens ash gusts and radiation spikes. The airlock still heals you faster than the flats do.",
+    blurb: "The suit you wear on the surface. Poisoned air, ash, and radiation drain you more slowly, so you can measure real conditions and get back down. This tests whether a suit is enough for the first people to go up.",
   },
   {
     id: "outpost",
     name: "Outpost kit",
     cost: 4,
-    blurb: "Plant it on a site you have already sampled. Dex can certify the test from the Deepworks workshop — a real step toward a return camp.",
+    blurb: "A small sealed camp for the first people to try living on the surface. Plant it on a site you have already measured. Dex certifies the test from the workshop.",
   },
   {
     id: "mesh",
     name: "Filter mesh",
     cost: 2,
-    blurb: "Clean salvage for a drum filter. Sticks only if Dex is at the workshop before the burn wipes.",
+    blurb: "The lower taps are making people sick. Dex builds a simple filter in the workshop so that water is safe to drink before it reaches them.",
   },
   {
     id: "bulkhead",
     name: "Bulkhead plates",
     cost: 3,
-    blurb: "Seals the Sump flood if Mara or Dex is at the flood gate. Dex also valves the trapped waste into the fuel still.",
+    blurb: "Sewage is flooding the old tunnels, and one flooded stretch can cut a whole neighborhood off. Mara or Dex bolts these plates onto the flood gate to hold the water back. If Dex does it, he also turns the trapped waste into fuel.",
   },
   {
     id: "lamps",
     name: "Lamp cells",
     cost: 2,
-    blurb: "Circadian lamps for the Deepworks bunks. Dex installs them at the workshop. They stay dark if the grid has no power.",
+    blurb: "People in the deep bunks never see daylight, and it is wearing down their sleep and their bodies. Dex installs these in the workshop as artificial sunlight. They go dark if the power is out.",
   },
   {
     id: "chimes",
     name: "Sound-net chimes",
     cost: 2,
-    blurb: "Rook strings a blackout code from the Concourse relay. The relay is a patrol post — it only sticks while the sweep is elsewhere.",
+    blurb: "Blackouts hit with no warning, and people split across levels cannot check on each other. Rook hangs these on the relay so a sound signal can travel when the power cuts. The patrol has to be somewhere else, or he is caught.",
   },
   {
     id: "clocks",
     name: "Medic clock kit",
     cost: 2,
-    blurb: "Synced clocks for the lung ward. Mara logs the outbreak if she is at the clinic, off the patrol route.",
+    blurb: "Lung sickness is spreading, and the official numbers do not match what people see. The nearest clinic can be levels away. Mara uses these synced clocks in the lower clinic to count the real cases and treat people there.",
   },
 ];
 
@@ -108,7 +108,7 @@ export const SCOUTS = [
     role: "Medic",
     color: "#e2a36a",
     period: 26,
-    blurb: "Clinic clocks, and she can seat a bulkhead if Dex is elsewhere.",
+    blurb: "Counts the real lung cases in the lower clinic, and can seal the flood gate if Dex is busy.",
     segments: [
       { t0: 0, t1: 9, post: "clinic", level: 2, x: 420, exposed: false, label: "Clinic" },
       { t0: 9, t1: 17, post: "flood", level: 2, x: 700, exposed: false, label: "Flood gate" },
@@ -122,7 +122,7 @@ export const SCOUTS = [
     role: "Engineer",
     color: "#7eb8b2",
     period: 30,
-    blurb: "Workshop builds, flood plates, then the waste still.",
+    blurb: "Builds the filter, the sunlight lamps, and the outpost test in the workshop. Seals the flood, then turns the waste into fuel.",
     segments: [
       { t0: 0, t1: 11, post: "workshop", level: 3, x: 540, exposed: false, label: "Workshop" },
       { t0: 11, t1: 19, post: "flood", level: 2, x: 700, exposed: false, label: "Flood gate" },
@@ -136,7 +136,7 @@ export const SCOUTS = [
     role: "Runner",
     color: "#d7d0bf",
     period: 22,
-    blurb: "Relay chimes, then the evac wall, then the deep drop.",
+    blurb: "Hangs the blackout chimes on the relay, then can post your surface readings on the evacuation wall.",
     segments: [
       { t0: 0, t1: 7, post: "relay", level: 1, x: 180, exposed: true, label: "Concourse relay" },
       { t0: 7, t1: 8.2, post: "transit", level: 1, x: 240, exposed: false, label: "In transit" },

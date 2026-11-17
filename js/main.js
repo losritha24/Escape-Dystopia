@@ -7,10 +7,11 @@
 
 import { playSfx } from "./audio.js";
 import { bindInput, endFrame, heldKey, pressed } from "./input.js";
+import { bindMusic, syncScore } from "./music.js";
 import { render } from "./render.js";
 import { bindScreens, closeSend, openSend, refreshHud, showPhase } from "./screens.js";
 import { createGame, createRun } from "./state.js";
-import { updateRun } from "./sim.js";
+import { patrolActive, updateRun } from "./sim.js";
 
 const game = createGame();
 
@@ -49,6 +50,7 @@ function fitCanvas() {
 
 bindInput();
 bindScreens(game, hooks);
+bindMusic(document.getElementById("sound-toggle"));
 showPhase(game);
 
 const live = document.createElement("div");
@@ -101,12 +103,27 @@ function frame(now) {
       }
     }
 
+    syncScore(scoreMood(game));
     endFrame();
   } catch (err) {
     console.error(err);
     endFrame();
   }
   queueFrame();
+}
+
+function scoreMood(current) {
+  if (current.phase === "brief") return "brief";
+  if (current.phase === "prepare") return "prepare";
+  if (current.phase === "ending") {
+    const title = document.getElementById("end-title")?.textContent || "";
+    if (title === "The Hatch Is Real") return "hatch";
+    if (title === "The Hollow Holds") return "hold";
+    return "burned";
+  }
+  if (current.run?.hollow.blackout > 0) return "blackout";
+  if (current.run && patrolActive(current.run.time)) return "patrol";
+  return "run";
 }
 
 queueFrame();

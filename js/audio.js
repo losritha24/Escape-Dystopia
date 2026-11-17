@@ -1,28 +1,35 @@
-/** Short tones only. Resumes after the first gesture if the browser blocked audio. */
+/** Shared audio context for the score and the short interface tones. */
 
 let ctx = null;
+let master = null;
 
-function ac() {
+export function getAudio() {
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) return null;
-  if (!ctx) ctx = new AC();
+  if (!ctx) {
+    ctx = new AC();
+    master = ctx.createGain();
+    master.gain.value = 1;
+    master.connect(ctx.destination);
+  }
   if (ctx.state === "suspended") ctx.resume();
-  return ctx;
+  return { ctx, master };
 }
 
 function tone(freq, t, dur, type, gain) {
-  const audio = ac();
+  const audio = getAudio();
   if (!audio) return;
-  const osc = audio.createOscillator();
-  const amp = audio.createGain();
+  const osc = audio.ctx.createOscillator();
+  const amp = audio.ctx.createGain();
   osc.type = type;
   osc.frequency.value = freq;
-  amp.gain.setValueAtTime(gain, audio.currentTime + t);
-  amp.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + t + dur);
+  const start = audio.ctx.currentTime + t;
+  amp.gain.setValueAtTime(gain, start);
+  amp.gain.exponentialRampToValueAtTime(0.0001, start + dur);
   osc.connect(amp);
-  amp.connect(audio.destination);
-  osc.start(audio.currentTime + t);
-  osc.stop(audio.currentTime + t + dur + 0.02);
+  amp.connect(audio.master);
+  osc.start(start);
+  osc.stop(start + dur + 0.02);
 }
 
 export function playSfx(kind) {
