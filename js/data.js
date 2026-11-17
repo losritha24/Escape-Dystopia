@@ -63,7 +63,7 @@ export const GEAR = [
     id: "lamps",
     name: "Lamp cells",
     cost: 2,
-    blurb: "People in the deep bunks never see daylight, and it is wearing down their sleep and their bodies. Dex installs these in the workshop as artificial sunlight. They go dark if the power is out.",
+    blurb: "People in the deep bunks never see daylight, and it is wearing down their sleep and their bodies. Dex installs these in the workshop as artificial sunlight. They only treat people if you metered real UV on the ridge, and they go dark if the power is out.",
   },
   {
     id: "chimes",
@@ -75,7 +75,7 @@ export const GEAR = [
     id: "clocks",
     name: "Medic clock kit",
     cost: 2,
-    blurb: "Lung sickness is spreading, and the official numbers do not match what people see. The nearest clinic can be levels away. Mara uses these synced clocks in the lower clinic to count the real cases and treat people there.",
+    blurb: "Lung sickness is spreading, and the official numbers do not match what people see. The nearest clinic can be levels away. Mara uses these synced clocks at the clinic to count the real cases, then needs a few seconds at the flood gate to treat the bunks that cannot climb to her.",
   },
 ];
 
@@ -108,7 +108,7 @@ export const SCOUTS = [
     role: "Medic",
     color: "#e2a36a",
     period: 26,
-    blurb: "Counts the real lung cases in the lower clinic, and can seal the flood gate if Dex is busy.",
+    blurb: "Counts the real lung cases at the clinic, then runs off-book hours at the flood gate. She can also seal the flood gate if Dex is busy.",
     segments: [
       { t0: 0, t1: 9, post: "clinic", level: 2, x: 420, exposed: false, label: "Clinic" },
       { t0: 9, t1: 17, post: "flood", level: 2, x: 700, exposed: false, label: "Flood gate" },

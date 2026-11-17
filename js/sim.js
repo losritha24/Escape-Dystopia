@@ -223,9 +223,9 @@ function resolveSuccess(run, msg, ctx) {
 
   if (msg.payloadId === "clocks") {
     h.clocks = true;
-    h.sickness = Math.max(0, h.sickness - 2);
-    banner(run, "Mara syncs the clinic clocks. The outbreak is a count, not a rumor.", "good");
-    pushLog(run, "Clock kit read at the clinic. Lung tally falls.");
+    h.outbreakLogged = true;
+    banner(run, "Mara logs the clusters. The bulletin still says the outbreak is contained.", "good");
+    pushLog(run, `Ward count ${h.sickness}, deep-heavy. The Directorate number is a lie.`);
   } else if (msg.payloadId === "bulkhead") {
     h.floodSealed = true;
     if (def.id === "dex") {
@@ -245,9 +245,20 @@ function resolveSuccess(run, msg, ctx) {
     pushLog(run, "Drum filter online in Deepworks.");
   } else if (msg.payloadId === "lamps") {
     h.lampsInstalled = true;
-    h.sickness = Math.max(0, h.sickness - 1);
-    banner(run, "Lamp cells seat into the Deepworks rig.", "good");
-    pushLog(run, "Circadian lamps installed. They need grid power to stay lit.");
+    h.lampsCalibrated = run.samples.rad && run.doseLogged;
+    banner(
+      run,
+      h.lampsCalibrated
+        ? "Dex seats the cells against your UV reading. A short day can run."
+        : "Dex seats the cells. Without a metered dose they stay a guess.",
+      "good"
+    );
+    pushLog(
+      run,
+      h.lampsCalibrated
+        ? "Lamp cells calibrated to the ridge reading. They still need grid power."
+        : "Lamp cells installed. Meter UV on the ridge before anyone trusts the timer."
+    );
   } else if (msg.payloadId === "chimes") {
     h.soundNet = true;
     banner(run, "Rook knots the chime line through all three levels.", "good");
@@ -314,6 +325,112 @@ function updateMessages(run, dt) {
       continue;
     }
     if (msg.age >= FUSE) resolveWipe(run, msg);
+  }
+}
+
+/** Uncounted cases keep appearing until Mara writes the real tally. */
+function updateOutbreak(run, dt) {
+  const h = run.hollow;
+  if (h.outbreakLogged || h.sickness >= 4) return;
+  h.caseTimer += dt;
+  if (h.caseTimer < 28) return;
+  h.caseTimer = 0;
+  h.sickness += 1;
+  pushLog(run, `Another coughing bunk. The ward count is ${h.sickness}, and nobody has written it down.`);
+}
+
+/** Clocks get her to the flood gate. The shift is what reaches people who cannot climb. */
+function updateCare(run, dt) {
+  const h = run.hollow;
+  const mara = run.scouts.mara;
+  if (!h.outbreakLogged || h.careReached || mara.caught) return;
+  const loc = locate(scoutDef("mara"), run.scoutClock);
+  if (loc.post !== "flood") {
+    mara.shiftTime = 0;
+    return;
+  }
+  mara.shiftTime += dt;
+  if (mara.shiftTime < 4) return;
+  h.careReached = true;
+  h.sickness = Math.max(0, h.sickness - 2);
+  banner(run, "Mara opens the sump ward off the book. The bunks that cannot climb get the count and the kits.", "good");
+  pushLog(run, "Off-book hours in the sump. Care reached the lower bunks.");
+  sfx(run, "good");
+}
+
+/** Ridge light is the dose. The breather keeps it from becoming a burn. */
+function updateExposure(run, dt) {
+  if (run.downed) return;
+  const p = run.player;
+  const suited = run.pack.breather > 0;
+  const inShaft = Math.abs(p.x - 150) < 100;
+  const inRidge = p.x >= WORLD.ridgeZone[0] && p.x <= WORLD.ridgeZone[1];
+  if (inRidge) run.exposure += dt * (suited ? 10 : 22);
+  else if (!inShaft) run.exposure += dt * (suited ? 0.5 : 1.1);
+  else run.exposure -= dt * 4;
+  run.exposure = Math.max(0, Math.min(100, run.exposure));
+
+  if (!run.doseLogged && run.exposure >= 16) {
+    run.doseLogged = true;
+    banner(run, "A short dose of sun. The meter has a number the bunks can copy.", "good");
+    pushLog(run, "Exposure metered. Enough sun to ease the hollow ache, not enough to burn.");
+    sfx(run, "sample");
+  }
+  if (!suited && !run.overexposed && run.exposure >= 55) {
+    run.overexposed = true;
+    p.integrity = Math.max(0, p.integrity - 12);
+    banner(run, "UV burn. The visor was not a breather.", "bad");
+    pushLog(run, "Too much ridge light with no breather. The skin pays for the dose.");
+    sfx(run, "caught");
+  }
+}
+
+/** A lit, metered day is the treatment. Installed cells alone change nothing. */
+function updateCircadian(run, dt) {
+  const h = run.hollow;
+  if (!h.lampsInstalled || h.circadianTreated) return;
+  if (run.samples.rad && run.doseLogged) h.lampsCalibrated = true;
+  if (!h.lampsCalibrated || !lampsLit(h)) {
+    h.lampTime = 0;
+    return;
+  }
+  h.lampTime += dt;
+  if (h.lampTime < 3) return;
+  h.circadianTreated = true;
+  h.sickness = Math.max(0, h.sickness - 1);
+  banner(run, "Deepworks runs a short day, metered to the ridge. Sleep has an edge again.", "good");
+  pushLog(run, "Circadian lamps treating. The dose matches the surface UV reading.");
+  sfx(run, "good");
+}
+
+/**
+ * The wall mark is only a map. An order needs a tested suit, a planted camp,
+ * and Mara's list of who is too sick to wait. A caught scout locks the shafts.
+ */
+function updateEvac(run) {
+  const h = run.hollow;
+  if (!h.routeMapped) return;
+  const caught = Object.values(run.scouts).some((scout) => scout.caught);
+  let next = "marked";
+  if (h.suspicion > 0 || caught) next = "locked";
+  else if (h.outbreakLogged && run.outpostPlanted && run.pack.breather > 0) next = "ordered";
+  if (next === h.evacOrder) return;
+  h.evacOrder = next;
+  if (next === "ordered") {
+    const camp = h.outpostOk ? "Dex certified the camp." : "The camp is planted, not yet certified.";
+    banner(run, "Evac order: sick bunks first, then the deep. The shaft list stays off the board.", "good");
+    pushLog(run, `Move planned. Breather tested, ward list in Mara's hand. ${camp}`);
+    sfx(run, "good");
+  } else if (next === "locked") {
+    banner(run, "Directorate lockdown. The evac wall is evidence now, not a route.", "bad");
+    pushLog(run, "A scout was taken. The move back up is sealed.");
+    sfx(run, "wipe");
+  } else {
+    const missing = [];
+    if (!h.outbreakLogged) missing.push("the ward list");
+    if (!run.outpostPlanted) missing.push("a planted outpost");
+    if (!(run.pack.breather > 0)) missing.push("a tested breather");
+    pushLog(run, `Evac wall marked. Still missing ${missing.join(", ")}.`);
   }
 }
 
@@ -519,10 +636,15 @@ export function updateRun(run, input, dt) {
   }
 
   applyHazards(run, dt);
+  updateExposure(run, dt);
   updateMessages(run, dt);
+  updateOutbreak(run, dt);
+  updateCare(run, dt);
+  updateCircadian(run, dt);
   updateFuel(run, dt);
   updateBlackout(run, dt);
   updateSurge(run);
+  updateEvac(run);
   updateWorldFlags(run, dt);
 
   if (run.downed) {
@@ -555,6 +677,15 @@ export function coachLine(run) {
   }
   if (!run.hollow.surgeResolved && !run.hollow.floodSealed && run.time > 55) {
     return `Sump surge in ${(SURGE_AT - run.time).toFixed(0)}s unless the flood gate is sealed.`;
+  }
+  if (run.hollow.clocks && !run.hollow.careReached && !run.scouts.mara.caught) {
+    const ward = locate(scoutDef("mara"), run.scoutClock);
+    if (ward.post === "flood") return "Mara is in the sump ward. The off-book shift takes a few seconds.";
+    return "Mara has the ward log. She still needs a few seconds at the flood gate.";
+  }
+  if (run.hollow.lampsInstalled && !run.hollow.circadianTreated) {
+    if (!run.doseLogged || !run.samples.rad) return "Lamp cells are in. Meter UV on the glass ridge or the day stays a guess.";
+    if (!lampsLit(run.hollow)) return "The day lamps are dark. They need grid power.";
   }
   if (run.burnsLeft === BURNS) {
     return "Transmit from the Relay Spine. A burn sticks only if that scout can act before the fuse dies.";

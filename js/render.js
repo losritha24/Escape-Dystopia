@@ -313,11 +313,11 @@ function drawWater(ctx, top, bandH, run) {
     ctx.fillRect(x, y + 28, 8, 8);
     ctx.fillRect(x + 2, y + 20, 4, 6);
   }
-  if (sick > 0) {
-    ctx.fillStyle = PALETTE.bad;
+  if (sick > 0 || run.hollow.outbreakLogged) {
+    ctx.fillStyle = run.hollow.outbreakLogged ? PALETTE.good : PALETTE.bad;
     ctx.font = "10px ui-monospace, monospace";
     ctx.textAlign = "center";
-    ctx.fillText("LUNG CASES", 860, y + h - 10);
+    ctx.fillText(run.hollow.outbreakLogged ? "LOGGED" : "UNCOUNTED", 860, y + h - 10);
   }
 }
 
@@ -365,6 +365,26 @@ function drawSystems(ctx, top, bandH, run) {
     ctx.beginPath();
     ctx.arc(x, y3 - 22, lit ? 5 : 3, 0, Math.PI * 2);
     ctx.fill();
+  }
+  if (h.circadianTreated) {
+    ctx.fillStyle = PALETTE.lamp;
+    ctx.font = "10px ui-monospace, monospace";
+    ctx.textAlign = "left";
+    ctx.fillText("DAY", 700, y3 - 18);
+  }
+
+  if (h.careReached) {
+    const y2 = bandCenter(top, bandH, 2);
+    ctx.fillStyle = PALETTE.good;
+    ctx.fillRect(708, y2 - 8, 3, 14);
+    ctx.fillRect(702, y2 - 2, 15, 3);
+  }
+
+  if (h.evacOrder) {
+    const y2 = bandCenter(top, bandH, 2);
+    ctx.strokeStyle = h.evacOrder === "ordered" ? PALETTE.good : h.evacOrder === "locked" ? PALETTE.bad : PALETTE.amber;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(280 - 20, y2 - 20, 40, 40);
   }
 
   if (h.fuelMade) {

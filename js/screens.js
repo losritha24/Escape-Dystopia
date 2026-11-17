@@ -179,6 +179,9 @@ function renderPrepare(game, hooks) {
           <ul>
             <li>At 0:46 the power cuts with no warning. Chimes let every level hear it coming. Without them, the lights die and the scouts freeze.</li>
             <li>At 1:12 the flood rises again unless the gate is already sealed. A sealed gate keeps that neighborhood open.</li>
+            <li>Lung cases climb until Mara logs them at the clinic. She then needs a few seconds at the flood gate for the bunks that cannot climb.</li>
+            <li>Stand on the glass ridge until exposure meters a dose. Lamp cells treat the deep only if that dose is real and the grid has power. No breather, and a long stay burns.</li>
+            <li>A move back up needs the readings on Rook's evac wall, a breather in the pack, a planted outpost, and Mara's ward list. A caught scout locks the shafts.</li>
             <li>You get ${BURNS} messages. Each one disappears after a few seconds. If a patrol sees it on a scout's screen, that scout is caught.</li>
             <li>Move with A and D. Hold E to sample. E at the Relay Spine, the surface antenna, opens a burn. E twice at the shaft ends the run.</li>
           </ul>
@@ -244,7 +247,13 @@ export function refreshHud(run) {
       <div class="kv"><span>Flood gate</span><span class="${run.hollow.floodSealed ? "good" : "bad"}">${run.hollow.floodSealed ? "Sealed" : "Open"}</span></div>
       <div class="kv"><span>Water</span><span>${run.hollow.water} / 3</span></div>
       <div class="kv"><span>Power</span><span>${run.hollow.power} / 2</span></div>
-      <div class="kv"><span>Lung cases</span><span>${run.hollow.sickness}</span></div>
+      <h3>Exposure ${Math.round(run.exposure)}</h3>
+      <div class="meter" aria-hidden="true"><span style="width:${Math.round(run.exposure)}%;background:${run.overexposed ? "var(--bad)" : run.doseLogged ? "var(--teal)" : "var(--amber)"}"></span></div>
+      <div class="kv"><span>Dose</span><span class="${run.doseLogged ? "good" : ""}">${run.doseLogged ? "Metered" : "No reading"}</span></div>
+      <div class="kv"><span>Lung cases</span><span>${run.hollow.sickness}${run.hollow.outbreakLogged ? " logged" : " uncounted"}</span></div>
+      <div class="kv"><span>Sump care</span><span class="${run.hollow.careReached ? "good" : ""}">${run.hollow.careReached ? "Reached" : run.hollow.clocks ? "Waiting on Mara" : "No clocks"}</span></div>
+      <div class="kv"><span>Day lamps</span><span class="${run.hollow.circadianTreated ? "good" : ""}">${dayLampLabel(run)}</span></div>
+      <div class="kv"><span>Evac</span><span class="${run.hollow.evacOrder === "ordered" ? "good" : run.hollow.evacOrder === "locked" ? "bad" : ""}">${evacLabel(run.hollow)}</span></div>
     </div>
     <div class="hud-block">
       <h3>Sub-Scouts</h3>
@@ -374,7 +383,7 @@ function renderEnding(game) {
       <p class="kicker">Debrief · suspicion ${report.suspicion}</p>
       <h1 id="end-title">${escapeHtml(report.title)}</h1>
       ${report.paragraphs.map((p) => `<p class="lede" style="font-size:18px;margin-top:12px">${escapeHtml(p)}</p>`).join("")}
-      ${report.routeMapped ? `<p class="muted">Rook marked the evac wall from your numbers.</p>` : ""}
+      ${report.routeMapped && game.run.hollow.evacOrder !== "ordered" ? `<p class="muted">Rook marked the evac wall from your numbers.</p>` : ""}
       <div class="status-grid">${systems}</div>
       <h3>Network</h3>
       <div class="status-grid">${people}</div>
@@ -385,6 +394,22 @@ function renderEnding(game) {
     </div>`;
   document.getElementById("again").onclick = () => game.hooks.showPrepare();
   document.getElementById("end-brief").onclick = () => game.hooks.showBrief();
+}
+
+function dayLampLabel(run) {
+  const h = run.hollow;
+  if (h.circadianTreated) return "Treating";
+  if (!h.lampsInstalled) return "None";
+  if (!h.lampsCalibrated) return "Unmetered";
+  if (h.power < 1 || h.blackout > 0) return "Dark";
+  return "Running";
+}
+
+function evacLabel(h) {
+  if (h.evacOrder === "ordered") return "Sick bunks first";
+  if (h.evacOrder === "locked") return "Lockdown";
+  if (h.evacOrder === "marked") return "Wall marked";
+  return "No route";
 }
 
 function formatTime(t) {

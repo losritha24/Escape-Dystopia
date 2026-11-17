@@ -39,6 +39,8 @@ export function createRun(pack) {
       lockPost: null,
       /** Seconds spent on the waste still, once fuel is pending. */
       stillTime: 0,
+      /** Seconds Mara has held the flood gate after the outbreak is logged. */
+      shiftTime: 0,
     };
   }
 
@@ -55,6 +57,10 @@ export function createRun(pack) {
     },
     pack: { ...pack },
     samples: { air: false, rad: false, soil: false },
+    /** 0–100. A short ridge dose is a number the bunks can copy. Too much, with no breather, burns. */
+    exposure: 0,
+    doseLogged: false,
+    overexposed: false,
     outpostPlanted: null,
     sent: { truth: false, mesh: false, lamps: false, outpost: false, bulkhead: false, chimes: false, clocks: false },
     burnsLeft: BURNS,
@@ -68,11 +74,24 @@ export function createRun(pack) {
       /** 0–4 lung markers on the Sump. */
       sickness: 2,
       lampsInstalled: false,
+      /** Cells are timed from a real ridge dose, not a guess. */
+      lampsCalibrated: false,
+      lampTime: 0,
+      /** The short day is actually running in the bunks. */
+      circadianTreated: false,
       filters: false,
       soundNet: false,
       clocks: false,
+      /** Mara wrote the real cluster count. The bulletin still says contained. */
+      outbreakLogged: false,
+      /** Seconds toward the next uncounted case. */
+      caseTimer: 0,
+      /** Off-book hours reached the bunks that cannot climb to the clinic. */
+      careReached: false,
       truthLevel: 0,
       routeMapped: false,
+      /** null | "marked" | "ordered" | "locked" */
+      evacOrder: null,
       outpostOk: false,
       suspicion: 0,
       fuelPending: false,
