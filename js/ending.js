@@ -1,6 +1,6 @@
 /** Turns hollow flags into a short debrief. The title follows what actually changed. */
 
-import { SCOUTS } from "./data.js?v=9";
+import { SCOUTS } from "./data.js?v=10";
 
 export function buildEnding(run) {
   const h = run.hollow;

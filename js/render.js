@@ -4,8 +4,8 @@
  * so a seal, a blackout, or a patrol reads without leaving the run.
  */
 
-import { FUSE, PALETTE, SCOUTS, SITES, WORLD } from "./data.js?v=9";
-import { locate, lampsLit, patrolActive } from "./sim.js?v=9";
+import { FUSE, PALETTE, SCOUTS, SITES, WORLD } from "./data.js?v=10";
+import { locate, lampsLit, patrolActive } from "./sim.js?v=10";
 
 const W = 960;
 const H = 640;

@@ -1,6 +1,6 @@
 /** Mutable run state. One expedition, then an ending. No hidden globals. */
 
-import { BURNS, GEAR, SCOUTS, SCRAP } from "./data.js?v=9";
+import { BURNS, GEAR, SCOUTS, SCRAP } from "./data.js?v=10";
 
 export function createGame() {
   return {

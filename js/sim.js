@@ -17,7 +17,7 @@ import {
   SITES,
   SURGE_AT,
   WORLD,
-} from "./data.js?v=9";
+} from "./data.js?v=10";
 
 const REACH = WORLD.reach;
 

@@ -1,8 +1,8 @@
 /** DOM screens. The live map stays on the canvas; text-heavy choices stay in HTML. */
 
-import { BURNS, FUSE, GEAR, SCOUTS, SITES } from "./data.js?v=9";
-import { buildEnding, carriedLines, readyForPods } from "./ending.js?v=9";
-import { scrapSpent } from "./state.js?v=9";
+import { BURNS, FUSE, GEAR, SCOUTS, SITES } from "./data.js?v=10";
+import { buildEnding, carriedLines, readyForPods } from "./ending.js?v=10";
+import { scrapSpent } from "./state.js?v=10";
 import {
   availablePayloads,
   coachLine,
@@ -11,7 +11,7 @@ import {
   patrolActive,
   patrolEta,
   sendBurn,
-} from "./sim.js?v=9";
+} from "./sim.js?v=10";
 
 let modalSelection = { payload: null, scout: null };
 
@@ -23,10 +23,12 @@ export function bindScreens(game, hooks) {
     if (e.key === "Escape" && game.phase === "run" && game.run?.awaitingSend) {
       closeSend(game);
     }
+    if (e.key === "Escape") document.getElementById("screen-places").classList.add("hidden");
   });
 }
 
 export function showPhase(game) {
+  document.getElementById("screen-places").classList.add("hidden");
   for (const id of ["screen-brief", "screen-prepare", "screen-run", "screen-end"]) {
     document.getElementById(id).classList.toggle("hidden", !phaseVisible(game.phase, id));
   }
@@ -112,8 +114,53 @@ function renderPrepare(game, hooks) {
         ? "Click a kit to pack it. Each one answers a different problem underground. Twelve scrap is not enough for every problem. What you finish stays finished on the next trip."
         : "The last trip's finished work is still in the Hollow. Pack another twelve scrap for the cards that are still open."}</p>
       ${game.cycle > 1 ? `<div class="panel"><h3>Still standing from last cycle</h3><ul>${(carriedLines(game.progress).map((line) => `<li>${line}</li>`).join("")) || "<li>Nothing finished yet.</li>"}</ul></div>` : ""}
+      <div class="gear-grid">${cards}</div>
+      <div class="cols">
+        <div class="panel">
+          <h3>Who is moving under you</h3>
+          <div class="routes">${routes}</div>
+          <p class="small muted">The patrol walks the Concourse for six seconds out of every twenty. If Rook is at the relay, or Mara is in the corridor, a message on their screen gets them caught.</p>
+        </div>
+        <div class="panel">
+          <h3>Windows you can plan on</h3>
+          <ul>
+            <li>At 0:46 the power cuts with no warning. Chimes let every level hear it coming. Without them, the lights die and the scouts freeze.</li>
+            <li>At 1:12 the flood rises again unless the gate is already sealed. A sealed gate keeps that neighborhood open.</li>
+            <li>Lung cases climb until Mara logs them at the clinic. She then needs a few seconds at the flood gate for the bunks that cannot climb.</li>
+            <li>Stand on the glass ridge until exposure meters a dose. Lamp cells treat the deep only if that dose is real and the grid has power. No breather, and a long stay burns. The living camp is the shade shelf just past that glass, where the UV does not reach.</li>
+            <li>A move back up needs the readings on Rook's evac wall, a breather in the pack, a planted outpost, and Mara's ward list. A caught scout locks the shafts.</li>
+            <li>You get ${BURNS} messages. Each one disappears after a few seconds. If a patrol sees it on a scout's screen, that scout is caught.</li>
+            <li>Move with A and D. Hold E to sample. E at the Relay Spine, the surface antenna, opens a burn. E twice at the shaft ends the run.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="row" style="margin-top:18px">
+        <button class="primary" type="button" id="open-shaft">${game.cycle === 1 ? "Open the shaft" : `Open cycle ${game.cycle}`}</button>
+        <button type="button" id="open-places">Floors and stops</button>
+        <button type="button" id="back-brief">Back</button>
+      </div>
+    </div>`;
+
+  for (const btn of document.querySelectorAll("[data-gear]")) {
+    btn.onclick = () => {
+      const id = btn.dataset.gear;
+      const gear = GEAR.find((g) => g.id === id);
+      if (game.pack[id]) game.pack[id] = 0;
+      else if (gear.cost <= game.scrapBudget - scrapSpent(game.pack)) game.pack[id] = 1;
+      renderPrepare(game, hooks);
+    };
+  }
+  document.getElementById("open-shaft").onclick = () => hooks.beginRun();
+  document.getElementById("open-places").onclick = () => openPlaces();
+  document.getElementById("back-brief").onclick = () => hooks.showBrief();
+}
+
+function openPlaces() {
+  document.getElementById("screen-places").innerHTML = `
+    <div class="sheet">
+      <p class="kicker">Where a burn lands</p>
       <div class="panel places">
-        <h3>The floors and the stops</h3>
+        <h2 id="places-title">The floors and the stops</h2>
         <p class="small muted">The Hollow is three floors, one under the next. A kit works only when the right scout is standing at the right stop.</p>
         <p class="place-label">Floors</p>
         <dl class="place-list floors">
@@ -171,43 +218,14 @@ function renderPrepare(game, hooks) {
         </dl>
         <p class="small muted">The Relay Spine is the antenna on the surface, not a room underground. Stand there and press E to send a message down to one of these stops.</p>
       </div>
-      <div class="gear-grid">${cards}</div>
-      <div class="cols">
-        <div class="panel">
-          <h3>Who is moving under you</h3>
-          <div class="routes">${routes}</div>
-          <p class="small muted">The patrol walks the Concourse for six seconds out of every twenty. If Rook is at the relay, or Mara is in the corridor, a message on their screen gets them caught.</p>
-        </div>
-        <div class="panel">
-          <h3>Windows you can plan on</h3>
-          <ul>
-            <li>At 0:46 the power cuts with no warning. Chimes let every level hear it coming. Without them, the lights die and the scouts freeze.</li>
-            <li>At 1:12 the flood rises again unless the gate is already sealed. A sealed gate keeps that neighborhood open.</li>
-            <li>Lung cases climb until Mara logs them at the clinic. She then needs a few seconds at the flood gate for the bunks that cannot climb.</li>
-            <li>Stand on the glass ridge until exposure meters a dose. Lamp cells treat the deep only if that dose is real and the grid has power. No breather, and a long stay burns. The living camp is the shade shelf just past that glass, where the UV does not reach.</li>
-            <li>A move back up needs the readings on Rook's evac wall, a breather in the pack, a planted outpost, and Mara's ward list. A caught scout locks the shafts.</li>
-            <li>You get ${BURNS} messages. Each one disappears after a few seconds. If a patrol sees it on a scout's screen, that scout is caught.</li>
-            <li>Move with A and D. Hold E to sample. E at the Relay Spine, the surface antenna, opens a burn. E twice at the shaft ends the run.</li>
-          </ul>
-        </div>
-      </div>
       <div class="row" style="margin-top:18px">
-        <button class="primary" type="button" id="open-shaft">${game.cycle === 1 ? "Open the shaft" : `Open cycle ${game.cycle}`}</button>
-        <button type="button" id="back-brief">Back</button>
+        <button class="primary" type="button" id="close-places">Back to the scrap</button>
       </div>
     </div>`;
-
-  for (const btn of document.querySelectorAll("[data-gear]")) {
-    btn.onclick = () => {
-      const id = btn.dataset.gear;
-      const gear = GEAR.find((g) => g.id === id);
-      if (game.pack[id]) game.pack[id] = 0;
-      else if (gear.cost <= game.scrapBudget - scrapSpent(game.pack)) game.pack[id] = 1;
-      renderPrepare(game, hooks);
-    };
-  }
-  document.getElementById("open-shaft").onclick = () => hooks.beginRun();
-  document.getElementById("back-brief").onclick = () => hooks.showBrief();
+  document.getElementById("screen-places").classList.remove("hidden");
+  document.getElementById("close-places").onclick = () => {
+    document.getElementById("screen-places").classList.add("hidden");
+  };
 }
 
 function alreadyDone(game, id) {

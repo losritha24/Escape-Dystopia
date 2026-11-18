@@ -61,6 +61,14 @@ button.danger:hover { border-color: var(--bad); color: var(--bad); }
   padding: 48px 24px 64px;
 }
 
+#screen-places {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  overflow: auto;
+  background: var(--bg);
+}
+
 .sheet {
   max-width: 880px;
   margin: 0 auto;
