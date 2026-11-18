@@ -1,15 +1,30 @@
 /** Mutable run state. One expedition, then an ending. No hidden globals. */
 
-import { BURNS, GEAR, SCOUTS, SCRAP } from "./data.js";
+import { BURNS, GEAR, SCOUTS, SCRAP } from "./data.js?v=9";
 
 export function createGame() {
   return {
     phase: "brief",
     /** scrap spent is derived from pack; this is the budget. */
     scrapBudget: SCRAP,
+    /** Shaft trips. The pod haul opens after cycle 2 if every card is green. */
+    cycle: 1,
+    /** Work that survived the last descent. Null until the first cycle ends. */
+    progress: null,
     pack: emptyPack(),
     run: null,
   };
+}
+
+/** Wipe carried work and start again at the brief, on cycle 1. */
+export function resetGame(game) {
+  const fresh = createGame();
+  game.phase = fresh.phase;
+  game.scrapBudget = fresh.scrapBudget;
+  game.cycle = fresh.cycle;
+  game.progress = fresh.progress;
+  game.pack = fresh.pack;
+  game.run = fresh.run;
 }
 
 export function emptyPack() {
@@ -28,8 +43,20 @@ export function scrapSpent(pack) {
   return GEAR.reduce((sum, gear) => sum + (pack[gear.id] || 0) * gear.cost, 0);
 }
 
+/** Copy the Hollow forward. Scouts start a new shift; finished work stays. */
+export function keepProgress(game) {
+  const run = game.run;
+  if (!run || run.mission === "pods") return;
+  game.progress = {
+    hollow: { ...run.hollow },
+    samples: { ...run.samples },
+    doseLogged: run.doseLogged,
+    outpostPlanted: run.outpostPlanted,
+  };
+}
+
 /** Fresh expedition from the chosen loadout. Called when the shaft opens. */
-export function createRun(pack) {
+export function createRun(pack, carried) {
   const scouts = {};
   for (const def of SCOUTS) {
     scouts[def.id] = {
@@ -44,7 +71,7 @@ export function createRun(pack) {
     };
   }
 
-  return {
+  const run = {
     time: 0,
     /** Scout schedules read this. A blackout can freeze it while surface time moves. */
     scoutClock: 0,
@@ -110,5 +137,41 @@ export function createRun(pack) {
     log: ["The shaft seal opens. The air tastes like hot coins."],
     sfx: [],
     lastRidgePulse: -1,
+    mission: "shaft",
   };
+  if (!carried) return run;
+  return applyCarried(run, carried);
+}
+
+/** The haul. The suit is already proven. Pods move from the shaft to the camp. */
+export function createPodRun(carried) {
+  const pack = emptyPack();
+  pack.breather = 1;
+  const run = createRun(pack, carried);
+  run.mission = "pods";
+  run.podsWaiting = 3;
+  run.podsSet = 0;
+  run.carryingPod = false;
+  run.gardenPlanted = false;
+  run.log = ["The path is open. Three livable pods wait at the shaft. The orchard can take a garden once a pod is up."];
+  return run;
+}
+
+function applyCarried(run, carried) {
+  Object.assign(run.hollow, carried.hollow);
+  run.hollow.blackout = 0;
+  run.hollow.blackoutResolved = false;
+  run.hollow.surgeResolved = false;
+  run.hollow.lampTime = 0;
+  run.hollow.caseTimer = 0;
+  run.hollow.fuelPending = false;
+  run.hollow.floodVisual = run.hollow.floodSealed ? 0.14 : 0.62;
+  run.hollow.power = Math.max(1, run.hollow.fuelMade ? run.hollow.power : 1);
+  if (run.hollow.evacOrder === "locked") run.hollow.evacOrder = run.hollow.routeMapped ? "marked" : null;
+  run.samples = { ...carried.samples };
+  run.doseLogged = carried.doseLogged;
+  run.outpostPlanted = carried.outpostPlanted === "shade" ? "shade" : null;
+  if (run.outpostPlanted !== "shade") run.hollow.outpostOk = false;
+  run.log = ["The shaft opens again. What the last trip finished is still in the Hollow."];
+  return run;
 }

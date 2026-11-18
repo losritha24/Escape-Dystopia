@@ -1,8 +1,8 @@
 /** DOM screens. The live map stays on the canvas; text-heavy choices stay in HTML. */
 
-import { BURNS, FUSE, GEAR, SCOUTS } from "./data.js";
-import { buildEnding } from "./ending.js";
-import { scrapSpent } from "./state.js";
+import { BURNS, FUSE, GEAR, SCOUTS, SITES } from "./data.js?v=9";
+import { buildEnding, carriedLines, readyForPods } from "./ending.js?v=9";
+import { scrapSpent } from "./state.js?v=9";
 import {
   availablePayloads,
   coachLine,
@@ -11,7 +11,7 @@ import {
   patrolActive,
   patrolEta,
   sendBurn,
-} from "./sim.js";
+} from "./sim.js?v=9";
 
 let modalSelection = { payload: null, scout: null };
 
@@ -54,7 +54,7 @@ function renderBrief(game, hooks) {
       <div class="cols">
         <div class="prose">
           <p>Two billion people live in the Hollow, stacked through old mines under a dead city. The Directorate rations power, water, air, and the story of the surface. You are the Lead Scout. Officially you go up on their missions. Quietly you keep a channel to three Sub-Scouts.</p>
-          <p>This prototype is one shaft cycle. Pack twelve scrap, walk the flats, and decide what is worth a burn.</p>
+          <p>Each trip is twelve scrap and three burns. What you finish stays finished. Come back up, pack again, and close the cards that are still open. When every card is green after the second trip, the pods and the orchard are the next work.</p>
           <div class="row" style="margin-top:18px">
             <button class="primary" type="button" id="to-prepare">Draw a loadout</button>
           </div>
@@ -77,13 +77,14 @@ function renderPrepare(game, hooks) {
   const spent = scrapSpent(game.pack);
   const left = game.scrapBudget - spent;
   const cards = GEAR.map((g) => {
+    const done = alreadyDone(game, g.id);
     const on = game.pack[g.id] > 0;
     const affordable = on || g.cost <= left;
     return `
-      <button type="button" class="card ${on ? "on" : ""}" data-gear="${g.id}" ${affordable ? "" : "disabled"}>
+      <button type="button" class="card ${on ? "on" : ""}" data-gear="${g.id}" ${done || !affordable ? "disabled" : ""}>
         <span class="name">${g.name}</span>
-        <span class="cost">${on ? "PACKED" : g.cost + " SCRAP"}</span>
-        <span class="blurb">${g.blurb}</span>
+        <span class="cost">${done ? "DONE" : on ? "PACKED" : g.cost + " SCRAP"}</span>
+        <span class="blurb">${done ? "Finished on an earlier cycle. It is still in the Hollow." : g.blurb}</span>
       </button>`;
   }).join("");
 
@@ -97,9 +98,9 @@ function renderPrepare(game, hooks) {
 
   document.getElementById("screen-prepare").innerHTML = `
     <div class="sheet">
-      <p class="kicker">Before the shaft cycles</p>
+      <p class="kicker">Cycle ${game.cycle} · before the shaft cycles</p>
       <div class="spread">
-        <h2 id="prepare-title">Twelve scrap</h2>
+        <h2 id="prepare-title">${game.cycle === 1 ? "Twelve scrap" : "Twelve scrap again"}</h2>
         <div>
           <div class="pips" aria-label="${left} scrap remaining">
             ${Array.from({ length: game.scrapBudget }, (_, i) => `<span class="pip ${i < left ? "on" : ""}"></span>`).join("")}
@@ -107,7 +108,10 @@ function renderPrepare(game, hooks) {
           <p class="small muted" style="margin:6px 0 0">${left} left to pack</p>
         </div>
       </div>
-      <p class="muted">Click a kit to pack it. Each one answers a different problem underground. Twelve scrap is not enough for every problem.</p>
+      <p class="muted">${game.cycle === 1
+        ? "Click a kit to pack it. Each one answers a different problem underground. Twelve scrap is not enough for every problem. What you finish stays finished on the next trip."
+        : "The last trip's finished work is still in the Hollow. Pack another twelve scrap for the cards that are still open."}</p>
+      ${game.cycle > 1 ? `<div class="panel"><h3>Still standing from last cycle</h3><ul>${(carriedLines(game.progress).map((line) => `<li>${line}</li>`).join("")) || "<li>Nothing finished yet.</li>"}</ul></div>` : ""}
       <div class="panel places">
         <h3>The floors and the stops</h3>
         <p class="small muted">The Hollow is three floors, one under the next. A kit works only when the right scout is standing at the right stop.</p>
@@ -180,7 +184,7 @@ function renderPrepare(game, hooks) {
             <li>At 0:46 the power cuts with no warning. Chimes let every level hear it coming. Without them, the lights die and the scouts freeze.</li>
             <li>At 1:12 the flood rises again unless the gate is already sealed. A sealed gate keeps that neighborhood open.</li>
             <li>Lung cases climb until Mara logs them at the clinic. She then needs a few seconds at the flood gate for the bunks that cannot climb.</li>
-            <li>Stand on the glass ridge until exposure meters a dose. Lamp cells treat the deep only if that dose is real and the grid has power. No breather, and a long stay burns.</li>
+            <li>Stand on the glass ridge until exposure meters a dose. Lamp cells treat the deep only if that dose is real and the grid has power. No breather, and a long stay burns. The living camp is the shade shelf just past that glass, where the UV does not reach.</li>
             <li>A move back up needs the readings on Rook's evac wall, a breather in the pack, a planted outpost, and Mara's ward list. A caught scout locks the shafts.</li>
             <li>You get ${BURNS} messages. Each one disappears after a few seconds. If a patrol sees it on a scout's screen, that scout is caught.</li>
             <li>Move with A and D. Hold E to sample. E at the Relay Spine, the surface antenna, opens a burn. E twice at the shaft ends the run.</li>
@@ -188,7 +192,7 @@ function renderPrepare(game, hooks) {
         </div>
       </div>
       <div class="row" style="margin-top:18px">
-        <button class="primary" type="button" id="open-shaft">Open the shaft</button>
+        <button class="primary" type="button" id="open-shaft">${game.cycle === 1 ? "Open the shaft" : `Open cycle ${game.cycle}`}</button>
         <button type="button" id="back-brief">Back</button>
       </div>
     </div>`;
@@ -206,9 +210,26 @@ function renderPrepare(game, hooks) {
   document.getElementById("back-brief").onclick = () => hooks.showBrief();
 }
 
+function alreadyDone(game, id) {
+  const h = game.progress?.hollow;
+  if (!h) return false;
+  if (id === "clocks") return h.outbreakLogged && h.careReached;
+  if (id === "lamps") return h.circadianTreated;
+  if (id === "chimes") return h.soundNet;
+  if (id === "mesh") return h.filters;
+  if (id === "bulkhead") return h.floodSealed;
+  if (id === "outpost") return h.outpostOk;
+  if (id === "breather") return h.evacOrder === "ordered";
+  return false;
+}
+
 export function refreshHud(run) {
   const hud = document.getElementById("hud");
   if (!hud || !run) return;
+  if (run.mission === "pods") {
+    refreshPodHud(run, hud);
+    return;
+  }
   const integrity = Math.max(0, Math.round(run.player.integrity));
   const meterColor = integrity < 30 ? "var(--bad)" : integrity < 60 ? "var(--amber)" : "var(--teal)";
   const sweep = patrolEta(run.time);
@@ -367,7 +388,36 @@ function paintModal(run) {
   };
 }
 
+function refreshPodHud(run, hud) {
+  const integrity = Math.max(0, Math.round(run.player.integrity));
+  const meterColor = integrity < 30 ? "var(--bad)" : integrity < 60 ? "var(--amber)" : "var(--teal)";
+  const camp = SITES.find((site) => site.id === run.outpostPlanted);
+  hud.innerHTML = `
+    <p class="kicker">The path is open</p>
+    <h2>Livable pods</h2>
+    <div class="hud-block">
+      <h3>Suit integrity ${integrity}</h3>
+      <div class="meter" aria-hidden="true"><span style="width:${integrity}%;background:${meterColor}"></span></div>
+      <div class="kv"><span>Pods at the shaft</span><span>${run.podsWaiting}</span></div>
+      <div class="kv"><span>Carrying</span><span>${run.carryingPod ? "One pod" : "Empty hands"}</span></div>
+      <div class="kv"><span>Set at the camp</span><span>${run.podsSet} / 3</span></div>
+      <div class="kv"><span>Camp</span><span>${camp ? camp.name : "Missing"}</span></div>
+      <div class="kv"><span>Orchard garden</span><span class="${run.gardenPlanted ? "good" : ""}">${run.gardenPlanted ? "Planted" : "Not yet"}</span></div>
+    </div>
+    <div class="hud-block coach">${escapeHtml(coachLine(run))}</div>
+    <div class="hud-block">
+      <h3>Channel log</h3>
+      ${run.log.map((line) => `<div class="log-line">${escapeHtml(line)}</div>`).join("")}
+    </div>
+    <p class="small muted">A D move · hold E hitch, set, or plant</p>
+  `;
+}
+
 function renderEnding(game) {
+  if (game.run?.mission === "pods") {
+    renderPodEnding(game);
+    return;
+  }
   const report = buildEnding(game.run);
   const systems = report.systems
     .map(
@@ -380,7 +430,7 @@ function renderEnding(game) {
 
   document.getElementById("screen-end").innerHTML = `
     <div class="sheet">
-      <p class="kicker">Debrief · suspicion ${report.suspicion}</p>
+      <p class="kicker">Cycle ${game.cycle} debrief · suspicion ${report.suspicion}</p>
       <h1 id="end-title">${escapeHtml(report.title)}</h1>
       ${report.paragraphs.map((p) => `<p class="lede" style="font-size:18px;margin-top:12px">${escapeHtml(p)}</p>`).join("")}
       ${report.routeMapped && game.run.hollow.evacOrder !== "ordered" ? `<p class="muted">Rook marked the evac wall from your numbers.</p>` : ""}
@@ -388,12 +438,49 @@ function renderEnding(game) {
       <h3>Network</h3>
       <div class="status-grid">${people}</div>
       <div class="row">
-        <button class="primary" type="button" id="again">Run the shaft again</button>
+        ${readyForPods(game.run) && game.cycle >= 2
+          ? `<button class="primary" type="button" id="pods">Bring the pods up</button>`
+          : `<button class="primary" type="button" id="again">Run the shaft again</button>`}
         <button type="button" id="end-brief">Return to the brief</button>
       </div>
+      <p class="muted">${readyForPods(game.run) && game.cycle >= 2
+        ? "Every card is green. The next work is the pods and the orchard garden."
+        : "Finished work stays in the Hollow. The next cycle is another twelve scrap for what is still open."}</p>
     </div>`;
-  document.getElementById("again").onclick = () => game.hooks.showPrepare();
-  document.getElementById("end-brief").onclick = () => game.hooks.showBrief();
+  const again = document.getElementById("again");
+  if (again) again.onclick = () => game.hooks.continueCycle();
+  const pods = document.getElementById("pods");
+  if (pods) pods.onclick = () => game.hooks.beginPods();
+  document.getElementById("end-brief").onclick = () => game.hooks.continueCycle("brief");
+}
+
+function renderPodEnding(game) {
+  const run = game.run;
+  const up = run.endReason === "pods";
+  document.getElementById("screen-end").innerHTML = `
+    <div class="sheet">
+      <p class="kicker">Above the shaft${up ? ` · ${game.cycle} shaft ${game.cycle === 1 ? "cycle" : "cycles"}` : ""}</p>
+      <h1 id="end-title">${up ? "The Pods Are Up" : "The Haul Failed"}</h1>
+      <p class="lede" style="font-size:18px;margin-top:12px">${up
+        ? `Three livable pods sit on the shade shelf, off the glass ridge. The orchard loam is a garden, planted from the soil reading you carried down. You closed the Hollow in ${game.cycle} shaft ${game.cycle === 1 ? "cycle" : "cycles"}. Play again to try for fewer trips.`
+        : "The surface took you back under before the pods were set. The path is still open."}</p>
+      <div class="status-grid">
+        <div class="status ${run.podsSet >= 3 ? "ok" : "fail"}"><b>Livable pods</b>${run.podsSet} / 3 set at the camp.</div>
+        <div class="status ${run.gardenPlanted ? "ok" : "fail"}"><b>Orchard garden</b>${run.gardenPlanted ? "Planted in the loam." : "The soil reading is still unused."}</div>
+      </div>
+      <div class="row">
+        ${up
+          ? `<button class="primary" type="button" id="restart">Play again</button>`
+          : `<button class="primary" type="button" id="retry-pods">Try the haul again</button>
+             <button type="button" id="end-brief">Return to the brief</button>`}
+      </div>
+    </div>`;
+  const retry = document.getElementById("retry-pods");
+  if (retry) retry.onclick = () => game.hooks.beginPods();
+  const restart = document.getElementById("restart");
+  if (restart) restart.onclick = () => game.hooks.restart();
+  const back = document.getElementById("end-brief");
+  if (back) back.onclick = () => game.hooks.showBrief();
 }
 
 function dayLampLabel(run) {

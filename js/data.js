@@ -45,7 +45,7 @@ export const GEAR = [
     id: "outpost",
     name: "Outpost kit",
     cost: 4,
-    blurb: "A small sealed camp for the first people to try living on the surface. Plant it on a site you have already measured. Dex certifies the test from the workshop.",
+    blurb: "A small sealed camp for the first people to try living on the surface. Plant it on the shade shelf past the glass ridge. The UV on the ridge never lets up, so that glass is only where you meter the dose. Dex certifies the camp from the workshop.",
   },
   {
     id: "mesh",
@@ -84,6 +84,7 @@ export const SITES = [
   { id: "ash", name: "Ash flats", x: 540, kind: "air" },
   { id: "relay", name: "Relay Spine", x: 900, kind: "relay" },
   { id: "ridge", name: "Glass ridge", x: 1320, kind: "rad" },
+  { id: "shade", name: "Shade shelf", x: 1580, kind: "shade" },
   { id: "orchard", name: "Dead orchard", x: 1780, kind: "soil" },
 ];
 

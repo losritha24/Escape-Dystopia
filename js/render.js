@@ -4,8 +4,8 @@
  * so a seal, a blackout, or a patrol reads without leaving the run.
  */
 
-import { FUSE, PALETTE, SCOUTS, SITES, WORLD } from "./data.js";
-import { locate, lampsLit, patrolActive } from "./sim.js";
+import { FUSE, PALETTE, SCOUTS, SITES, WORLD } from "./data.js?v=9";
+import { locate, lampsLit, patrolActive } from "./sim.js?v=9";
 
 const W = 960;
 const H = 640;
@@ -160,6 +160,12 @@ function drawSites(ctx, cam, run) {
       ctx.arc(x, gy - 70, 5, 0, Math.PI * 2);
       ctx.stroke();
     }
+    if (site.kind === "shade") {
+      ctx.fillStyle = "rgba(20, 16, 12, 0.55)";
+      ctx.fillRect(x - 28, gy - 18, 56, 10);
+      ctx.fillStyle = PALETTE.ink;
+      ctx.fillRect(x - 34, gy - 22, 68, 4);
+    }
 
     const done =
       (site.kind === "air" && run.samples.air) ||
@@ -172,6 +178,15 @@ function drawSites(ctx, cam, run) {
     if (run.outpostPlanted === site.id) {
       ctx.strokeStyle = PALETTE.teal;
       ctx.strokeRect(x - 16, gy - 28, 32, 16);
+      if (run.mission === "pods") {
+        ctx.fillStyle = PALETTE.teal;
+        for (let i = 0; i < (run.podsSet || 0); i++) ctx.fillRect(x - 18 + i * 12, gy - 44, 8, 8);
+      }
+    }
+    if (run.gardenPlanted && site.id === "orchard") {
+      ctx.fillStyle = PALETTE.good;
+      ctx.fillRect(x - 10, gy - 70, 4, 12);
+      ctx.fillRect(x + 6, gy - 74, 4, 16);
     }
 
     ctx.fillStyle = PALETTE.ink;
@@ -203,6 +218,10 @@ function drawPlayer(ctx, cam, run) {
   ctx.fillStyle = "#1a120c";
   ctx.fillRect(-7, -8, 5, 8);
   ctx.fillRect(2, -8, 5, 8);
+  if (run.carryingPod) {
+    ctx.strokeStyle = PALETTE.teal;
+    ctx.strokeRect(-16, -22, 10, 8);
+  }
   if (run.player.channel) {
     const u = run.player.channel.time / run.player.channel.need;
     ctx.strokeStyle = PALETTE.amber;
@@ -234,6 +253,7 @@ function drawSurfaceHud(ctx, cam, run) {
 }
 
 function nearestPrompt(run) {
+  if (run.mission === "pods") return podPrompt(run);
   const x = run.player.x;
   let best = null;
   let bestD = WORLD.reach;
@@ -250,11 +270,29 @@ function nearestPrompt(run) {
     return run.descendArmed > 0 ? "E  DESCEND — END THE RUN" : "E  ARM DESCENT";
   }
   if (best.kind === "relay") return "E  OPEN A BURN";
+  if (best.id === "shade") {
+    if (run.outpostPlanted === "shade" && run.pack.outpost > 0 && !run.hollow.outpostOk) return "HOLD F  CERTIFY THE CAMP";
+    if (!run.outpostPlanted && run.pack.outpost > 0 && !run.samples.rad) return "SAMPLE THE GLASS RIDGE FIRST";
+    if (!run.outpostPlanted && run.pack.outpost > 0) return "HOLD F  PLANT THE CAMP";
+    if (run.outpostPlanted === "shade") return "SHADE SHELF  ·  CAMP";
+    return "SHADE SHELF  ·  OUT OF THE UV";
+  }
   const key = best.kind === "air" ? "air" : best.kind === "rad" ? "rad" : "soil";
   const label = best.kind === "air" ? "AIR TOXICITY" : best.kind === "rad" ? "RADIATION + UV" : "SOIL";
   if (!run.samples[key]) return `HOLD E  SAMPLE ${label}`;
-  if (run.pack.outpost > 0 && !run.outpostPlanted) return "HOLD F  PLANT OUTPOST";
   return `${best.name.toUpperCase()}  ·  LOGGED`;
+}
+
+function podPrompt(run) {
+  const site = SITES.find((item) => Math.abs(item.x - run.player.x) <= WORLD.reach);
+  if (!site) return run.carryingPod ? "WALK THE POD TO THE CAMP" : "";
+  if (site.kind === "shaft" && !run.carryingPod && run.podsWaiting > 0) return "HOLD E  HITCH A POD";
+  if (site.id === "shade" && run.carryingPod && run.outpostPlanted === "shade") return "HOLD E  SET THE POD";
+  if (site.id === "orchard" && !run.carryingPod && run.podsSet > 0 && !run.gardenPlanted) return "HOLD E  PLANT THE GARDEN";
+  if (site.id === "orchard" && run.gardenPlanted) return "ORCHARD  ·  GARDEN";
+  if (run.carryingPod) return "WALK THE POD TO THE CAMP";
+  if (run.podsWaiting > 0) return "BACK TO THE SHAFT FOR THE NEXT POD";
+  return "";
 }
 
 function drawHollow(ctx, run) {

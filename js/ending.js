@@ -1,6 +1,6 @@
 /** Turns hollow flags into a short debrief. The title follows what actually changed. */
 
-import { SCOUTS } from "./data.js";
+import { SCOUTS } from "./data.js?v=9";
 
 export function buildEnding(run) {
   const h = run.hollow;
@@ -94,6 +94,27 @@ export function buildEnding(run) {
   });
 
   return { title, tone, paragraphs, systems, people, suspicion: h.suspicion, routeMapped: h.routeMapped };
+}
+
+export function readyForPods(run) {
+  return buildEnding(run).systems.every((system) => system.ok);
+}
+
+export function carriedLines(progress) {
+  if (!progress) return [];
+  const h = progress.hollow;
+  const lines = [];
+  if (h.floodSealed) lines.push("Flood gate is sealed.");
+  if (h.filters && h.water >= 2) lines.push("The lower tap is filtered.");
+  if (h.outbreakLogged) lines.push("Mara's outbreak log is written.");
+  if (h.careReached) lines.push("Deep care already reached the bunks.");
+  if (h.circadianTreated) lines.push("Deepworks already has a metered day.");
+  if (h.soundNet) lines.push("The blackout chimes are up.");
+  if (h.truthLevel === 3) lines.push("The full surface file is already below.");
+  if (h.outpostOk) lines.push("The outpost is certified.");
+  else if (progress.outpostPlanted) lines.push("The outpost is planted. Pack the kit again and hold F at the camp to certify it.");
+  if (h.evacOrder === "ordered") lines.push("The evac order is already written.");
+  return lines;
 }
 
 function flag(name, ok, detail) {

@@ -5,13 +5,13 @@
  * and the patrol keep their meaning once a message is actually sent.
  */
 
-import { playSfx } from "./audio.js";
-import { bindInput, endFrame, heldKey, pressed } from "./input.js";
-import { bindMusic, syncScore } from "./music.js";
-import { render } from "./render.js";
-import { bindScreens, closeSend, openSend, refreshHud, showPhase } from "./screens.js";
-import { createGame, createRun } from "./state.js";
-import { patrolActive, updateRun } from "./sim.js";
+import { playSfx } from "./audio.js?v=9";
+import { bindInput, endFrame, heldKey, pressed } from "./input.js?v=9";
+import { bindMusic, syncScore } from "./music.js?v=9";
+import { render } from "./render.js?v=9";
+import { bindScreens, closeSend, openSend, refreshHud, showPhase } from "./screens.js?v=9";
+import { createGame, createPodRun, createRun, emptyPack, keepProgress, resetGame } from "./state.js?v=9";
+import { patrolActive, updateRun } from "./sim.js?v=9";
 
 const game = createGame();
 
@@ -25,10 +25,30 @@ const hooks = {
     showPhase(game);
   },
   beginRun() {
-    game.run = createRun(game.pack);
+    game.run = createRun(game.pack, game.progress);
     game.phase = "run";
     showPhase(game);
     fitCanvas();
+  },
+  continueCycle(dest) {
+    if (game.run?.finished && game.run.mission !== "pods" && !game.run.cycleClosed) {
+      game.run.cycleClosed = true;
+      game.cycle += 1;
+      game.pack = emptyPack();
+    }
+    if (dest === "brief") game.phase = "brief";
+    else game.phase = "prepare";
+    showPhase(game);
+  },
+  beginPods() {
+    game.run = createPodRun(game.progress);
+    game.phase = "run";
+    showPhase(game);
+    fitCanvas();
+  },
+  restart() {
+    resetGame(game);
+    showPhase(game);
   },
 };
 game.hooks = hooks;
@@ -94,6 +114,7 @@ function frame(now) {
       while (game.run.sfx.length) playSfx(game.run.sfx.shift());
 
       if (game.run.finished) {
+        keepProgress(game);
         game.phase = "ending";
         showPhase(game);
       } else {
@@ -117,7 +138,7 @@ function scoreMood(current) {
   if (current.phase === "prepare") return "prepare";
   if (current.phase === "ending") {
     const title = document.getElementById("end-title")?.textContent || "";
-    if (title === "The Hatch Is Real") return "hatch";
+    if (title === "The Hatch Is Real" || title === "The Pods Are Up") return "hatch";
     if (title === "The Hollow Holds") return "hold";
     return "burned";
   }

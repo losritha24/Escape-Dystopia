@@ -2,6 +2,21 @@
 
 let ctx = null;
 let master = null;
+let muted = true;
+
+export function isMuted() {
+  return muted;
+}
+
+/** Silence the score and the interface tones together. The label follows this flag. */
+export function setMuted(next) {
+  muted = next;
+  if (!master || !ctx) return muted;
+  const gain = master.gain;
+  gain.cancelScheduledValues(ctx.currentTime);
+  gain.setValueAtTime(muted ? 0 : 1, ctx.currentTime);
+  return muted;
+}
 
 export function getAudio() {
   const AC = window.AudioContext || window.webkitAudioContext;
@@ -9,7 +24,7 @@ export function getAudio() {
   if (!ctx) {
     ctx = new AC();
     master = ctx.createGain();
-    master.gain.value = 1;
+    master.gain.value = muted ? 0 : 1;
     master.connect(ctx.destination);
   }
   if (ctx.state === "suspended") ctx.resume();
@@ -33,6 +48,7 @@ function tone(freq, t, dur, type, gain) {
 }
 
 export function playSfx(kind) {
+  if (muted) return;
   if (kind === "send") tone(520, 0, 0.08, "square", 0.04);
   else if (kind === "good") {
     tone(440, 0, 0.1, "triangle", 0.05);

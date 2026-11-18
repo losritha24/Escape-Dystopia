@@ -17,7 +17,7 @@ import {
   SITES,
   SURGE_AT,
   WORLD,
-} from "./data.js";
+} from "./data.js?v=9";
 
 const REACH = WORLD.reach;
 
@@ -227,6 +227,10 @@ function resolveSuccess(run, msg, ctx) {
     banner(run, "Mara logs the clusters. The bulletin still says the outbreak is contained.", "good");
     pushLog(run, `Ward count ${h.sickness}, deep-heavy. The Directorate number is a lie.`);
   } else if (msg.payloadId === "bulkhead") {
+    if (h.floodSealed) {
+      banner(run, "The flood gate is already sealed.", "good");
+      pushLog(run, "Plates arrive late. The gate was already shut.");
+    } else {
     h.floodSealed = true;
     if (def.id === "dex") {
       h.fuelPending = true;
@@ -237,12 +241,18 @@ function resolveSuccess(run, msg, ctx) {
       pushLog(run, "Flood gate sealed. Mara is not an engineer, but it holds.");
     }
     h.water = Math.min(3, h.water + 1);
+    }
   } else if (msg.payloadId === "mesh") {
+    if (h.filters) {
+      banner(run, "The lower tap is already filtered.", "good");
+      pushLog(run, "Mesh arrives late. The filter is already running.");
+    } else {
     h.filters = true;
     h.water = Math.min(3, h.water + 2);
     h.sickness = Math.max(0, h.sickness - 1);
     banner(run, "Dex packs the mesh. The lower tap runs clear.", "good");
     pushLog(run, "Drum filter online in Deepworks.");
+    }
   } else if (msg.payloadId === "lamps") {
     h.lampsInstalled = true;
     h.lampsCalibrated = run.samples.rad && run.doseLogged;
@@ -409,7 +419,7 @@ function updateCircadian(run, dt) {
  */
 function updateEvac(run) {
   const h = run.hollow;
-  if (!h.routeMapped) return;
+  if (!h.routeMapped || h.evacOrder === "ordered") return;
   const caught = Object.values(run.scouts).some((scout) => scout.caught);
   let next = "marked";
   if (h.suspicion > 0 || caught) next = "locked";
@@ -541,9 +551,14 @@ function updateChannel(run, input, dt, site) {
   const p = run.player;
   const wantSample = site && (site.kind === "air" || site.kind === "rad" || site.kind === "soil");
   const holdingSample = wantSample && input.held("e");
-  const holdingPlant = site && site.kind !== "shaft" && site.kind !== "relay" && run.pack.outpost > 0 && !run.outpostPlanted && input.held("f");
+  const holdingPlant = site && site.id === "shade" && run.pack.outpost > 0 && !run.outpostPlanted && run.samples.rad && input.held("f");
+  const holdingCert = site && site.id === run.outpostPlanted && run.pack.outpost > 0 && !run.hollow.outpostOk && input.held("f");
 
-  if (holdingPlant && run.samples[site.kind === "air" ? "air" : site.kind === "rad" ? "rad" : "soil"]) {
+  if (holdingCert) {
+    if (!p.channel || p.channel.kind !== "cert" || p.channel.site !== site.id) {
+      p.channel = { kind: "cert", site: site.id, time: 0, need: 1.7 };
+    }
+  } else if (holdingPlant) {
     if (!p.channel || p.channel.kind !== "plant" || p.channel.site !== site.id) {
       p.channel = { kind: "plant", site: site.id, time: 0, need: 1.7 };
     }
@@ -571,9 +586,15 @@ function updateChannel(run, input, dt, site) {
   } else if (p.channel.kind === "plant") {
     run.outpostPlanted = p.channel.site;
     const name = SITES.find((s) => s.id === p.channel.site).name;
-    banner(run, `Outpost planted at ${name}. Dex can certify it from the workshop.`, "good");
+    banner(run, `Camp planted on the shade shelf. The glass ridge stays a measuring post. Dex can certify the camp from the workshop.`, "good");
     pushLog(run, `Outpost kit standing at ${name}.`);
     sfx(run, "sample");
+  } else if (p.channel.kind === "cert") {
+    run.hollow.outpostOk = true;
+    const name = SITES.find((s) => s.id === p.channel.site).name;
+    banner(run, `The camp at ${name} is certified. Dex's mark is on the same kit.`, "good");
+    pushLog(run, `Outpost certified at ${name}. No extra burn.`);
+    sfx(run, "good");
   }
   p.channel = null;
 }
@@ -581,6 +602,72 @@ function updateChannel(run, input, dt, site) {
 function finish(run, reason) {
   run.endReason = reason;
   run.finished = true;
+}
+
+function movePlayer(run, input, dt) {
+  const p = run.player;
+  if (run.downed) return;
+  const left = input.held("a", "arrowleft");
+  const right = input.held("d", "arrowright");
+  if (!p.channel && (left || right)) {
+    p.facing = right && !left ? 1 : left && !right ? -1 : p.facing;
+    const dir = (right ? 1 : 0) - (left ? 1 : 0);
+    p.x = Math.max(70, Math.min(WORLD.width - 70, p.x + dir * WORLD.speed * dt));
+    if (p.x > 280) run.leftShaft = true;
+  }
+}
+
+/** Second level. Hitch a pod at the shaft, set it on the camp, plant the orchard. */
+function updatePodRun(run, input, dt) {
+  run.time += dt;
+  movePlayer(run, input, dt);
+  const site = siteAt(run.player.x);
+  if (!run.downed) holdPodChannel(run, input, dt, site);
+  applyHazards(run, dt);
+  if (run.downed) {
+    run.downTimer -= dt;
+    if (run.downTimer <= 0) finish(run, "downed");
+    return;
+  }
+  if (run.podsSet >= 3 && run.gardenPlanted) finish(run, "pods");
+}
+
+function holdPodChannel(run, input, dt, site) {
+  const p = run.player;
+  const atShaft = site && site.kind === "shaft";
+  const atCamp = site && site.id === "shade" && run.outpostPlanted === "shade";
+  const atOrchard = site && site.id === "orchard";
+  let kind = null;
+  if (input.held("e")) {
+    if (atShaft && !run.carryingPod && run.podsWaiting > 0) kind = "hitch";
+    else if (atCamp && run.carryingPod) kind = "set";
+    else if (atOrchard && !run.carryingPod && !run.gardenPlanted && run.podsSet > 0) kind = "garden";
+  }
+  if (!kind) {
+    p.channel = null;
+    return;
+  }
+  if (!p.channel || p.channel.kind !== kind) p.channel = { kind, time: 0, need: kind === "garden" ? 1.6 : 1.4 };
+  p.channel.time += dt;
+  if (p.channel.time < p.channel.need) return;
+  if (kind === "hitch") {
+    run.carryingPod = true;
+    run.podsWaiting -= 1;
+    banner(run, "A livable pod is hitched. Walk it to the shade shelf.", "good");
+    pushLog(run, `${run.podsWaiting} pods still waiting at the shaft.`);
+  } else if (kind === "set") {
+    run.carryingPod = false;
+    run.podsSet += 1;
+    const name = SITES.find((s) => s.id === run.outpostPlanted)?.name || "the camp";
+    banner(run, `Pod set at ${name}. ${run.podsSet} of 3 up.`, "good");
+    pushLog(run, `Livable pod ${run.podsSet} is above.`);
+  } else {
+    run.gardenPlanted = true;
+    banner(run, "The orchard takes the soil reading. A garden is in the ground.", "good");
+    pushLog(run, "Neighborhood garden planted in the orchard loam.");
+  }
+  sfx(run, "good");
+  p.channel = null;
 }
 
 /**
@@ -592,6 +679,10 @@ export function updateRun(run, input, dt) {
   if (run.banner) {
     run.banner.age += dt;
     if (run.banner.age > 3.4) run.banner = null;
+  }
+  if (run.mission === "pods") {
+    updatePodRun(run, input, dt);
+    return;
   }
 
   run.time += dt;
@@ -658,6 +749,12 @@ export function updateRun(run, input, dt) {
 }
 
 export function coachLine(run) {
+  if (run.mission === "pods") {
+    if (run.carryingPod) return "Walk the pod to the shade shelf, past the glass. Hold E there to set it down.";
+    if (run.podsSet > 0 && !run.gardenPlanted) return "The soil reading can become a garden. Hold E at the dead orchard.";
+    if (run.podsWaiting > 0) return "Hold E at the shaft airlock to hitch the next livable pod.";
+    return "Set the remaining pods on the camp.";
+  }
   const live = run.messages.find((m) => m.status === "live");
   if (live) {
     const name = scoutDef(live.to).name;

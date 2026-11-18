@@ -4,7 +4,7 @@
  * Moods only change loudness and which phrase is playing. The clock keeps running.
  */
 
-import { getAudio } from "./audio.js";
+import { getAudio, isMuted, setMuted } from "./audio.js?v=9";
 
 const BPM = 52;
 const PHRYGIAN = [62, 63, 65, 67, 69, 70, 72, 74];
@@ -25,7 +25,6 @@ const MOODS = {
 };
 
 let started = false;
-let muted = false;
 let moodName = "brief";
 let nextBeat = 0;
 let step = 0;
@@ -129,7 +128,7 @@ function applyMood(immediate) {
     [nodes.motif, mood.motif],
     [nodes.air, mood.air],
   ]) {
-    node.gain.setTargetAtTime(muted ? 0 : value, now, ramp);
+    node.gain.setTargetAtTime(isMuted() ? 0 : value, now, ramp);
   }
   nodes.filter.frequency.setTargetAtTime(mood.filter, now, ramp);
 }
@@ -179,13 +178,15 @@ function playTone(midi, when, dur, peak) {
 
 function arm() {
   if (!started || !nodes) return;
-  const mood = MOODS[moodName] || MOODS.brief;
-  const beat = (60 / BPM) * mood.beat;
-  const horizon = nodes.ctx.currentTime + 0.35;
-  if (nextBeat < nodes.ctx.currentTime) nextBeat = nodes.ctx.currentTime + 0.05;
-  while (nextBeat < horizon) {
-    scheduleBeat(nextBeat);
-    nextBeat += beat;
+  if (!isMuted()) {
+    const mood = MOODS[moodName] || MOODS.brief;
+    const beat = (60 / BPM) * mood.beat;
+    const horizon = nodes.ctx.currentTime + 0.35;
+    if (nextBeat < nodes.ctx.currentTime) nextBeat = nodes.ctx.currentTime + 0.05;
+    while (nextBeat < horizon) {
+      scheduleBeat(nextBeat);
+      nextBeat += beat;
+    }
   }
   window.setTimeout(arm, 120);
 }
@@ -199,17 +200,11 @@ export function unlockScore() {
 }
 
 export function toggleScore() {
-  const audio = getAudio();
-  if (!audio) return muted;
-  if (!started) {
-    unlockScore();
-    muted = false;
-  } else {
-    muted = !muted;
-  }
-  if (nodes) nodes.music.gain.setTargetAtTime(muted ? 0 : 1, nodes.ctx.currentTime, 0.05);
-  applyMood(false);
-  return muted;
+  const nextMuted = !isMuted();
+  if (!nextMuted) unlockScore();
+  setMuted(nextMuted);
+  applyMood(true);
+  return nextMuted;
 }
 
 export function syncScore(nextMood) {
@@ -230,10 +225,12 @@ export function bindMusic(button) {
   });
 
   const resume = (event) => {
-    if (event.target instanceof Element && event.target.closest("#sound-toggle")) return;
-    if (muted) return;
+    const node = event.target instanceof Node ? event.target : null;
+    const el = node instanceof Element ? node : node?.parentElement;
+    if (el && el.closest("#sound-toggle")) return;
+    if (isMuted()) return;
     unlockScore();
-    paint(started && !muted);
+    paint(started && !isMuted());
   };
   window.addEventListener("pointerdown", resume);
   window.addEventListener("keydown", resume);
