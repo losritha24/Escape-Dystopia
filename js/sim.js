@@ -15,9 +15,14 @@ import {
   SAMPLE_COPY,
   SCOUTS,
   SITES,
+  DRONE_BEAM,
+  DRONE_PERIOD,
+  DRONE_WARN,
+  RIDGE_BURN,
+  RIDGE_RED,
   SURGE_AT,
   WORLD,
-} from "./data.js?v=10";
+} from "./data.js?v=14";
 
 const REACH = WORLD.reach;
 
@@ -81,6 +86,81 @@ export function siteAt(x) {
 
 function gusting(time) {
   return Math.floor(time / 2.5) % 2 === 0;
+}
+
+const DRONES = [
+  { y: 86, speed: 62, phase: 0, min: 220, max: 1880 },
+  { y: 124, speed: 44, phase: 520, min: 160, max: 1960 },
+  { y: 154, speed: 78, phase: 240, min: 300, max: 1700 },
+];
+const BEAM_HALF = 24;
+
+function droneX(drone, time) {
+  const span = drone.max - drone.min;
+  const travel = (time * drone.speed + drone.phase) % (span * 2);
+  const along = travel <= span ? travel : span * 2 - travel;
+  return drone.min + along;
+}
+
+/** Where the Directorate drones are, and whether this moment is a sweep. */
+export function droneFrame(time) {
+  const sweep = Math.floor(Math.max(0, time) / DRONE_PERIOD);
+  const into = time - sweep * DRONE_PERIOD;
+  const beamAt = DRONE_PERIOD - DRONE_BEAM;
+  const warnAt = beamAt - DRONE_WARN;
+  const mode = into >= beamAt ? "beam" : into >= warnAt ? "warn" : "fly";
+  const sampleAt = mode === "fly" ? time : sweep * DRONE_PERIOD + warnAt;
+  const until = mode === "fly" ? warnAt - into : mode === "warn" ? beamAt - into : DRONE_PERIOD - into;
+  return {
+    mode,
+    sweep,
+    until,
+    drones: DRONES.map((drone) => ({ x: droneX(drone, sampleAt), y: drone.y })),
+  };
+}
+
+function onRelay(x) {
+  const relay = SITES.find((site) => site.kind === "relay");
+  return Boolean(relay) && Math.abs(x - relay.x) <= WORLD.reach;
+}
+
+function updateRidgeStay(run, dt) {
+  if (run.downed || run.finished) return;
+  const inRidge = run.player.x >= WORLD.ridgeZone[0] && run.player.x <= WORLD.ridgeZone[1];
+  if (!inRidge) {
+    run.ridgeStay = 0;
+    run.ridgeWarned = false;
+    return;
+  }
+  run.ridgeStay += dt;
+  if (!run.ridgeWarned && run.ridgeStay >= RIDGE_RED) {
+    run.ridgeWarned = true;
+    banner(run, "The glass is cooking the suit. Leave the ridge.", "bad");
+    sfx(run, "caught");
+  }
+  if (run.ridgeStay >= RIDGE_BURN) {
+    banner(run, "The ridge burned through the suit.", "bad");
+    pushLog(run, "Too long on the glass. The UV cooked the scout.");
+    finish(run, "burnt");
+  }
+}
+
+function updateDrones(run) {
+  if (run.downed) return;
+  const frame = droneFrame(run.time);
+  if (frame.mode !== "beam" || run.droneResolvedSweep === frame.sweep) return;
+  const hit = frame.drones.some((drone) => Math.abs(drone.x - run.player.x) < BEAM_HALF);
+  if (!hit) return;
+  run.droneResolvedSweep = frame.sweep;
+  if (onRelay(run.player.x)) {
+    banner(run, "The Relay Spine is an official post. The beam passes over.", "good");
+    pushLog(run, "A drone swept the relay. You were where a lead scout is supposed to be.");
+    return;
+  }
+  run.hollow.notified += 1;
+  banner(run, "A drone beam catches you. The Directorate is notified.", "bad");
+  pushLog(run, `Surface sighting ${run.hollow.notified}. The Directorate has the lead scout off the relay.`);
+  sfx(run, "caught");
 }
 
 function pushLog(run, text) {
@@ -422,7 +502,7 @@ function updateEvac(run) {
   if (!h.routeMapped || h.evacOrder === "ordered") return;
   const caught = Object.values(run.scouts).some((scout) => scout.caught);
   let next = "marked";
-  if (h.suspicion > 0 || caught) next = "locked";
+  if (h.suspicion > 0 || caught || h.notified > 0) next = "locked";
   else if (h.outbreakLogged && run.outpostPlanted && run.pack.breather > 0) next = "ordered";
   if (next === h.evacOrder) return;
   h.evacOrder = next;
@@ -432,8 +512,13 @@ function updateEvac(run) {
     pushLog(run, `Move planned. Breather tested, ward list in Mara's hand. ${camp}`);
     sfx(run, "good");
   } else if (next === "locked") {
-    banner(run, "Directorate lockdown. The evac wall is evidence now, not a route.", "bad");
-    pushLog(run, "A scout was taken. The move back up is sealed.");
+    if (h.notified > 0 && h.suspicion === 0 && !caught) {
+      banner(run, "A drone sighting locks the shafts. The Directorate saw you off the relay.", "bad");
+      pushLog(run, "Surface sighting. The move back up waits for a cleaner trip.");
+    } else {
+      banner(run, "Directorate lockdown. The evac wall is evidence now, not a route.", "bad");
+      pushLog(run, "A scout was taken. The move back up is sealed.");
+    }
     sfx(run, "wipe");
   } else {
     const missing = [];
@@ -621,9 +706,11 @@ function movePlayer(run, input, dt) {
 function updatePodRun(run, input, dt) {
   run.time += dt;
   movePlayer(run, input, dt);
+  updateRidgeStay(run, dt);
   const site = siteAt(run.player.x);
   if (!run.downed) holdPodChannel(run, input, dt, site);
   applyHazards(run, dt);
+  updateDrones(run);
   if (run.downed) {
     run.downTimer -= dt;
     if (run.downTimer <= 0) finish(run, "downed");
@@ -703,6 +790,7 @@ export function updateRun(run, input, dt) {
     }
   }
 
+  updateRidgeStay(run, dt);
   const site = siteAt(p.x);
   if (!run.downed) updateChannel(run, input, dt, site);
 
@@ -727,6 +815,7 @@ export function updateRun(run, input, dt) {
   }
 
   applyHazards(run, dt);
+  updateDrones(run);
   updateExposure(run, dt);
   updateMessages(run, dt);
   updateOutbreak(run, dt);
@@ -749,6 +838,10 @@ export function updateRun(run, input, dt) {
 }
 
 export function coachLine(run) {
+  if ((run.ridgeStay || 0) >= RIDGE_RED) return "The glass is burning the visor. Leave the ridge.";
+  const drones = droneFrame(run.time);
+  if (drones.mode === "warn") return "Orange lines are lining up. Step aside, or stand on the Relay Spine.";
+  if (drones.mode === "beam") return "Beams are live. A hit off the Relay Spine notifies the Directorate.";
   if (run.mission === "pods") {
     if (run.carryingPod) return "Walk the pod to the shade shelf, past the glass. Hold E there to set it down.";
     if (run.podsSet > 0 && !run.gardenPlanted) return "The soil reading can become a garden. Hold E at the dead orchard.";

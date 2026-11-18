@@ -4,7 +4,7 @@
  * Moods only change loudness and which phrase is playing. The clock keeps running.
  */
 
-import { getAudio, isMuted, setMuted } from "./audio.js?v=10";
+import { getAudio, isMuted, setMuted } from "./audio.js?v=14";
 
 const BPM = 52;
 const PHRYGIAN = [62, 63, 65, 67, 69, 70, 72, 74];

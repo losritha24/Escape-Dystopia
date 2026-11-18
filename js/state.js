@@ -1,6 +1,6 @@
 /** Mutable run state. One expedition, then an ending. No hidden globals. */
 
-import { BURNS, GEAR, SCOUTS, SCRAP } from "./data.js?v=10";
+import { BURNS, GEAR, SCOUTS, SCRAP } from "./data.js?v=14";
 
 export function createGame() {
   return {
@@ -121,6 +121,8 @@ export function createRun(pack, carried) {
       evacOrder: null,
       outpostOk: false,
       suspicion: 0,
+      /** Drone sightings this trip. A new cycle starts clear. */
+      notified: 0,
       fuelPending: false,
       fuelMade: false,
       floodVisual: 0.62,
@@ -137,6 +139,11 @@ export function createRun(pack, carried) {
     log: ["The shaft seal opens. The air tastes like hot coins."],
     sfx: [],
     lastRidgePulse: -1,
+    /** Sweep index already resolved, so one beam window notifies once. */
+    droneResolvedSweep: -1,
+    /** Seconds spent continuously inside the glass ridge. */
+    ridgeStay: 0,
+    ridgeWarned: false,
     mission: "shaft",
   };
   if (!carried) return run;
@@ -167,6 +174,7 @@ function applyCarried(run, carried) {
   run.hollow.fuelPending = false;
   run.hollow.floodVisual = run.hollow.floodSealed ? 0.14 : 0.62;
   run.hollow.power = Math.max(1, run.hollow.fuelMade ? run.hollow.power : 1);
+  run.hollow.notified = 0;
   if (run.hollow.evacOrder === "locked") run.hollow.evacOrder = run.hollow.routeMapped ? "marked" : null;
   run.samples = { ...carried.samples };
   run.doseLogged = carried.doseLogged;

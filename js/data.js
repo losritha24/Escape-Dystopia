@@ -12,6 +12,13 @@ export const READ_TIME = 0.85;
 export const RUN_LIMIT = 108;
 export const BLACKOUT_AT = 46;
 export const SURGE_AT = 72;
+/** Directorate drones fire on this cadence. The warn and the beam sit at the end of each window. */
+export const DRONE_PERIOD = 15;
+export const DRONE_WARN = 1.2;
+export const DRONE_BEAM = 0.75;
+/** Continuous seconds on the glass before the view reddens, then before the run ends. */
+export const RIDGE_RED = 3.2;
+export const RIDGE_BURN = 7;
 
 export const PALETTE = {
   bg: "#0e0d0b",

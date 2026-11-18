@@ -5,13 +5,13 @@
  * and the patrol keep their meaning once a message is actually sent.
  */
 
-import { playSfx } from "./audio.js?v=10";
-import { bindInput, endFrame, heldKey, pressed } from "./input.js?v=10";
-import { bindMusic, syncScore } from "./music.js?v=10";
-import { render } from "./render.js?v=10";
-import { bindScreens, closeSend, openSend, refreshHud, showPhase } from "./screens.js?v=10";
-import { createGame, createPodRun, createRun, emptyPack, keepProgress, resetGame } from "./state.js?v=10";
-import { patrolActive, updateRun } from "./sim.js?v=10";
+import { playSfx } from "./audio.js?v=14";
+import { bindInput, endFrame, heldKey, pressed } from "./input.js?v=14";
+import { bindMusic, syncScore } from "./music.js?v=14";
+import { render } from "./render.js?v=14";
+import { bindScreens, closeSend, openSend, refreshHud, showPhase } from "./screens.js?v=14";
+import { createGame, createPodRun, createRun, emptyPack, keepProgress, resetGame } from "./state.js?v=14";
+import { patrolActive, updateRun } from "./sim.js?v=14";
 
 const game = createGame();
 

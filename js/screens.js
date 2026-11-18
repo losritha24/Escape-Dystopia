@@ -1,17 +1,18 @@
 /** DOM screens. The live map stays on the canvas; text-heavy choices stay in HTML. */
 
-import { BURNS, FUSE, GEAR, SCOUTS, SITES } from "./data.js?v=10";
-import { buildEnding, carriedLines, readyForPods } from "./ending.js?v=10";
-import { scrapSpent } from "./state.js?v=10";
+import { BURNS, FUSE, GEAR, SCOUTS, SITES } from "./data.js?v=14";
+import { buildEnding, carriedLines, readyForPods } from "./ending.js?v=14";
+import { scrapSpent } from "./state.js?v=14";
 import {
   availablePayloads,
   coachLine,
+  droneFrame,
   forecast,
   locate,
   patrolActive,
   patrolEta,
   sendBurn,
-} from "./sim.js?v=10";
+} from "./sim.js?v=14";
 
 let modalSelection = { payload: null, scout: null };
 
@@ -127,8 +128,9 @@ function renderPrepare(game, hooks) {
             <li>At 0:46 the power cuts with no warning. Chimes let every level hear it coming. Without them, the lights die and the scouts freeze.</li>
             <li>At 1:12 the flood rises again unless the gate is already sealed. A sealed gate keeps that neighborhood open.</li>
             <li>Lung cases climb until Mara logs them at the clinic. She then needs a few seconds at the flood gate for the bunks that cannot climb.</li>
-            <li>Stand on the glass ridge until exposure meters a dose. Lamp cells treat the deep only if that dose is real and the grid has power. No breather, and a long stay burns. The living camp is the shade shelf just past that glass, where the UV does not reach.</li>
+            <li>Stand on the glass ridge until exposure meters a dose, then leave. Stay and the screen goes red. Stay longer and the UV burns the suit and ends the run. Lamp cells treat the deep only if that dose is real and the grid has power. The living camp is the shade shelf just past that glass.</li>
             <li>A move back up needs the readings on Rook's evac wall, a breather in the pack, a planted outpost, and Mara's ward list. A caught scout locks the shafts.</li>
+            <li>Directorate drones sweep the surface every 15 seconds. Step out of the orange beam. On the Relay Spine the same beam does not count.</li>
             <li>You get ${BURNS} messages. Each one disappears after a few seconds. If a patrol sees it on a scout's screen, that scout is caught.</li>
             <li>Move with A and D. Hold E to sample. E at the Relay Spine, the surface antenna, opens a burn. E twice at the shaft ends the run.</li>
           </ul>
@@ -228,6 +230,18 @@ function openPlaces() {
   };
 }
 
+function droneWatch(run) {
+  const frame = droneFrame(run.time);
+  const text = frame.mode === "beam"
+    ? "Beams live"
+    : frame.mode === "warn"
+      ? "Lining up"
+      : run.hollow.notified
+        ? `${run.hollow.notified} notified · ${frame.until.toFixed(0)}s`
+        : `Sweep in ${frame.until.toFixed(0)}s`;
+  return { text, hot: frame.mode !== "fly" };
+}
+
 function alreadyDone(game, id) {
   const h = game.progress?.hollow;
   if (!h) return false;
@@ -283,6 +297,7 @@ export function refreshHud(run) {
       <div class="kv"><span>Surface time</span><span>${formatTime(run.time)} / ${formatTime(108)}</span></div>
       <div class="kv"><span>Burns</span><span>${run.burnsLeft} / ${BURNS}</span></div>
       <div class="kv"><span>Patrol</span><span class="${sweep.active ? "bad" : ""}">${sweep.active ? "Sweeping" : "Clear"} · ${sweep.seconds.toFixed(0)}s</span></div>
+      <div class="kv"><span>Drones</span><span class="${droneWatch(run).hot ? "bad" : run.hollow.notified ? "warn" : ""}">${droneWatch(run).text}</span></div>
       <div class="kv"><span>Flood gate</span><span class="${run.hollow.floodSealed ? "good" : "bad"}">${run.hollow.floodSealed ? "Sealed" : "Open"}</span></div>
       <div class="kv"><span>Water</span><span>${run.hollow.water} / 3</span></div>
       <div class="kv"><span>Power</span><span>${run.hollow.power} / 2</span></div>
@@ -416,6 +431,7 @@ function refreshPodHud(run, hud) {
     <div class="hud-block">
       <h3>Suit integrity ${integrity}</h3>
       <div class="meter" aria-hidden="true"><span style="width:${integrity}%;background:${meterColor}"></span></div>
+      <div class="kv"><span>Drones</span><span class="${droneWatch(run).hot ? "bad" : run.hollow.notified ? "warn" : ""}">${droneWatch(run).text}</span></div>
       <div class="kv"><span>Pods at the shaft</span><span>${run.podsWaiting}</span></div>
       <div class="kv"><span>Carrying</span><span>${run.carryingPod ? "One pod" : "Empty hands"}</span></div>
       <div class="kv"><span>Set at the camp</span><span>${run.podsSet} / 3</span></div>
@@ -478,10 +494,12 @@ function renderPodEnding(game) {
   document.getElementById("screen-end").innerHTML = `
     <div class="sheet">
       <p class="kicker">Above the shaft${up ? ` · ${game.cycle} shaft ${game.cycle === 1 ? "cycle" : "cycles"}` : ""}</p>
-      <h1 id="end-title">${up ? "The Pods Are Up" : "The Haul Failed"}</h1>
+      <h1 id="end-title">${up ? "The Pods Are Up" : run.endReason === "burnt" ? "Burned on the Glass" : "The Haul Failed"}</h1>
       <p class="lede" style="font-size:18px;margin-top:12px">${up
         ? `Three livable pods sit on the shade shelf, off the glass ridge. The orchard loam is a garden, planted from the soil reading you carried down. You closed the Hollow in ${game.cycle} shaft ${game.cycle === 1 ? "cycle" : "cycles"}. Play again to try for fewer trips.`
-        : "The surface took you back under before the pods were set. The path is still open."}</p>
+        : run.endReason === "burnt"
+          ? "The glass ridge cooked the suit. The haul ended in a burn."
+          : "The surface took you back under before the pods were set. The path is still open."}</p>
       <div class="status-grid">
         <div class="status ${run.podsSet >= 3 ? "ok" : "fail"}"><b>Livable pods</b>${run.podsSet} / 3 set at the camp.</div>
         <div class="status ${run.gardenPlanted ? "ok" : "fail"}"><b>Orchard garden</b>${run.gardenPlanted ? "Planted in the loam." : "The soil reading is still unused."}</div>

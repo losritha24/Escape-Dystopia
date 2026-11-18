@@ -1,6 +1,6 @@
 /** Turns hollow flags into a short debrief. The title follows what actually changed. */
 
-import { SCOUTS } from "./data.js?v=10";
+import { SCOUTS } from "./data.js?v=14";
 
 export function buildEnding(run) {
   const h = run.hollow;
@@ -8,7 +8,10 @@ export function buildEnding(run) {
 
   let title = "The Bulletin Stands";
   let tone = "bad";
-  if (h.suspicion >= 2 || (caught.length > 0 && h.truthLevel === 0 && !h.floodSealed && !h.filters)) {
+  if (run.endReason === "burnt") {
+    title = "Burned on the Glass";
+    tone = "bad";
+  } else if (h.suspicion >= 2 || (caught.length > 0 && h.truthLevel === 0 && !h.floodSealed && !h.filters)) {
     title = "Terminals Were Taken";
     tone = "bad";
   } else if (h.truthLevel === 3 && h.outpostOk && h.floodSealed && h.filters && h.suspicion === 0 && caught.length === 0) {
@@ -23,7 +26,9 @@ export function buildEnding(run) {
   }
 
   const paragraphs = [];
-  if (run.endReason === "downed") {
+  if (run.endReason === "burnt") {
+    paragraphs.push("The glass ridge cooked the suit. You stayed in the UV too long, and the shaft brought a burn back down instead of a scout.");
+  } else if (run.endReason === "downed") {
     paragraphs.push("You did not walk back. The airlock dragged a hypoxic scout down the shaft, and the clinic logged you with the other bad lungs.");
   } else if (run.endReason === "timeout") {
     paragraphs.push("The Directorate's window closed on schedule. Whatever you sent is all the Hollow gets until the next shaft cycle.");
@@ -47,6 +52,11 @@ export function buildEnding(run) {
   }
   if (h.circadianTreated) {
     paragraphs.push("Deepworks ran a short day, timed from the ridge UV you metered. The dark is no longer the only clock those bunks have.");
+  }
+  if (h.notified > 0) {
+    paragraphs.push(h.notified === 1
+      ? "A Directorate drone caught you off the Relay Spine. The sighting is on the board."
+      : `Directorate drones caught you ${h.notified} times off the Relay Spine.`);
   }
   if (h.evacOrder === "ordered") {
     paragraphs.push("The move is an order, not a rumor. Sick bunks go first, then the deep. The breather was tested, a camp is planted, and the shaft list never hit the Directorate board.");
@@ -79,6 +89,7 @@ export function buildEnding(run) {
     flag("Sunlight", h.circadianTreated, sunlightDetail(h)),
     flag("Evac order", h.evacOrder === "ordered", evacDetail(h)),
     flag("Sound net", h.soundNet, h.soundNet ? "Blackout code can travel." : "Levels go deaf in a blackout."),
+    flag("Drone watch", h.notified === 0, h.notified ? `${h.notified} sighting${h.notified === 1 ? "" : "s"}. The Directorate was notified.` : "No beam caught the lead scout."),
     flag("Surface file", h.truthLevel === 3, h.truthLevel === 0 ? "No readings delivered." : `${h.truthLevel} / 3 readings delivered.`),
     flag("Return camp", h.outpostOk, h.outpostOk ? "Outpost certified." : run.outpostPlanted ? "Planted, never certified." : "Not tested."),
   ];
@@ -131,7 +142,7 @@ function sunlightDetail(h) {
 
 function evacDetail(h) {
   if (h.evacOrder === "ordered") return "Sick bunks first. Shafts stay quiet.";
-  if (h.evacOrder === "locked") return "Lockdown. The wall mark is evidence.";
+  if (h.evacOrder === "locked") return h.notified > 0 && h.suspicion === 0 ? "A drone sighting locked the shafts." : "Lockdown. The wall mark is evidence.";
   if (h.routeMapped) return "Wall marked. No order of who goes.";
   return "No route back up.";
 }
