@@ -87,7 +87,7 @@ export const GEAR = [
 ];
 
 export const SITES = [
-  { id: "shaft", name: "Shaft airlock", x: 150, kind: "shaft" },
+  { id: "shaft", name: "Hollow station", x: 150, kind: "shaft" },
   { id: "ash", name: "Ash flats", x: 540, kind: "air" },
   { id: "relay", name: "Relay Spine", x: 900, kind: "relay" },
   { id: "ridge", name: "Glass ridge", x: 1320, kind: "rad" },
@@ -102,6 +102,8 @@ export const WORLD = {
   speed: 250,
   ashZone: [400, 700],
   ridgeZone: [1180, 1480],
+  /** Walk to this x, from the street, and the stairs take you back down. */
+  stationMouth: 104,
 };
 
 /**

@@ -1,6 +1,6 @@
 /** Mutable run state. One expedition, then an ending. No hidden globals. */
 
-import { BURNS, GEAR, SCOUTS, SCRAP } from "./data.js?v=14";
+import { BURNS, GEAR, SCOUTS, SCRAP } from "./data.js?v=21";
 
 export function createGame() {
   return {
@@ -136,7 +136,7 @@ export function createRun(pack, carried) {
     descendArmed: 0,
     endReason: null,
     banner: null,
-    log: ["The shaft seal opens. The air tastes like hot coins."],
+    log: ["The station stairs open onto a dead street. The air tastes like hot coins."],
     sfx: [],
     lastRidgePulse: -1,
     /** Sweep index already resolved, so one beam window notifies once. */

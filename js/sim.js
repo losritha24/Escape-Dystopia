@@ -22,7 +22,7 @@ import {
   RIDGE_RED,
   SURGE_AT,
   WORLD,
-} from "./data.js?v=14";
+} from "./data.js?v=21";
 
 const REACH = WORLD.reach;
 
@@ -699,6 +699,7 @@ function movePlayer(run, input, dt) {
     const dir = (right ? 1 : 0) - (left ? 1 : 0);
     p.x = Math.max(70, Math.min(WORLD.width - 70, p.x + dir * WORLD.speed * dt));
     if (p.x > 280) run.leftShaft = true;
+    if (run.mission === "pods" && p.x < WORLD.stationMouth + 10) p.x = WORLD.stationMouth + 10;
   }
 }
 
@@ -776,10 +777,16 @@ export function updateRun(run, input, dt) {
   if (run.freeze > 0) run.freeze = Math.max(0, run.freeze - dt);
   else run.scoutClock += dt;
 
-  if (run.descendArmed > 0) run.descendArmed = Math.max(0, run.descendArmed - dt);
-
   const p = run.player;
-  if (!run.downed) {
+  if (run.entering) {
+    run.entering += dt;
+    p.facing = -1;
+    p.channel = null;
+    const travel = Math.min(1, run.entering / 1.65);
+    p.x = WORLD.stationMouth - travel * 48;
+    p.stair = travel * 80;
+    if (run.entering > 1.65) finish(run, "descend");
+  } else if (!run.downed) {
     const left = input.held("a", "arrowleft");
     const right = input.held("d", "arrowright");
     if (!p.channel && (left || right)) {
@@ -787,6 +794,20 @@ export function updateRun(run, input, dt) {
       const dir = (right ? 1 : 0) - (left ? 1 : 0);
       p.x = Math.max(70, Math.min(WORLD.width - 70, p.x + dir * WORLD.speed * dt));
       if (p.x > 280) run.leftShaft = true;
+      if (!run.leftShaft && p.x < WORLD.stationMouth + 10) {
+        p.x = WORLD.stationMouth + 10;
+        if (left && !run.stationWarned) {
+          run.stationWarned = true;
+          banner(run, "Measure the surface before you take the stairs home.", "warn");
+        }
+      }
+    }
+    if (run.leftShaft && p.x <= WORLD.stationMouth) {
+      run.entering = 0.01;
+      p.channel = null;
+      p.facing = -1;
+      banner(run, "You take the stairs back down.", "good");
+      sfx(run, "good");
     }
   }
 
@@ -804,12 +825,6 @@ export function updateRun(run, input, dt) {
         banner(run, "Nothing to send. Sample the flats, or bring salvage next time.", "warn");
       } else {
         run.wantSend = true;
-      }
-    } else if (site.kind === "shaft") {
-      if (run.descendArmed > 0) finish(run, "descend");
-      else {
-        run.descendArmed = 2.2;
-        banner(run, "Press E again to descend and end the run.", "warn");
       }
     }
   }
@@ -838,6 +853,7 @@ export function updateRun(run, input, dt) {
 }
 
 export function coachLine(run) {
+  if (run.entering) return "You take the stairs back down.";
   if ((run.ridgeStay || 0) >= RIDGE_RED) return "The glass is burning the visor. Leave the ridge.";
   const drones = droneFrame(run.time);
   if (drones.mode === "warn") return "Orange lines are lining up. Step aside, or stand on the Relay Spine.";
@@ -845,7 +861,7 @@ export function coachLine(run) {
   if (run.mission === "pods") {
     if (run.carryingPod) return "Walk the pod to the shade shelf, past the glass. Hold E there to set it down.";
     if (run.podsSet > 0 && !run.gardenPlanted) return "The soil reading can become a garden. Hold E at the dead orchard.";
-    if (run.podsWaiting > 0) return "Hold E at the shaft airlock to hitch the next livable pod.";
+    if (run.podsWaiting > 0) return "Hold E outside the station to hitch the next livable pod.";
     return "Set the remaining pods on the camp.";
   }
   const live = run.messages.find((m) => m.status === "live");
@@ -882,7 +898,7 @@ export function coachLine(run) {
   }
   return sweep.active
     ? "Patrol is on the Concourse."
-    : `Patrol in ${sweep.seconds.toFixed(0)}s. Shaft airlock restores the suit.`;
+    : `Patrol in ${sweep.seconds.toFixed(0)}s. The station stairs lead back down.`;
 }
 
 export function lampsLit(hollow) {

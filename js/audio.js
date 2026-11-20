@@ -3,6 +3,7 @@
 let ctx = null;
 let master = null;
 let muted = true;
+let linked = false;
 
 export function isMuted() {
   return muted;
@@ -12,9 +13,16 @@ export function isMuted() {
 export function setMuted(next) {
   muted = next;
   if (!master || !ctx) return muted;
-  const gain = master.gain;
-  gain.cancelScheduledValues(ctx.currentTime);
-  gain.setValueAtTime(muted ? 0 : 1, ctx.currentTime);
+  const level = muted ? 0 : 1;
+  master.gain.cancelScheduledValues(0);
+  master.gain.value = level;
+  if (muted && linked) {
+    master.disconnect();
+    linked = false;
+  } else if (!muted && !linked) {
+    master.connect(ctx.destination);
+    linked = true;
+  }
   return muted;
 }
 
@@ -25,7 +33,10 @@ export function getAudio() {
     ctx = new AC();
     master = ctx.createGain();
     master.gain.value = muted ? 0 : 1;
-    master.connect(ctx.destination);
+    if (!muted) {
+      master.connect(ctx.destination);
+      linked = true;
+    }
   }
   if (ctx.state === "suspended") ctx.resume();
   return { ctx, master };

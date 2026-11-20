@@ -1,8 +1,8 @@
 /** DOM screens. The live map stays on the canvas; text-heavy choices stay in HTML. */
 
-import { BURNS, FUSE, GEAR, SCOUTS, SITES } from "./data.js?v=14";
-import { buildEnding, carriedLines, readyForPods } from "./ending.js?v=14";
-import { scrapSpent } from "./state.js?v=14";
+import { BURNS, FUSE, GEAR, SCOUTS, SITES } from "./data.js?v=21";
+import { buildEnding, carriedLines, readyForPods } from "./ending.js?v=22";
+import { scrapSpent } from "./state.js?v=21";
 import {
   availablePayloads,
   coachLine,
@@ -12,7 +12,7 @@ import {
   patrolActive,
   patrolEta,
   sendBurn,
-} from "./sim.js?v=14";
+} from "./sim.js?v=21";
 
 let modalSelection = { payload: null, scout: null };
 
@@ -132,7 +132,7 @@ function renderPrepare(game, hooks) {
             <li>A move back up needs the readings on Rook's evac wall, a breather in the pack, a planted outpost, and Mara's ward list. A caught scout locks the shafts.</li>
             <li>Directorate drones sweep the surface every 15 seconds. Step out of the orange beam. On the Relay Spine the same beam does not count.</li>
             <li>You get ${BURNS} messages. Each one disappears after a few seconds. If a patrol sees it on a scout's screen, that scout is caught.</li>
-            <li>Move with A and D. Hold E to sample. E at the Relay Spine, the surface antenna, opens a burn. E twice at the shaft ends the run.</li>
+            <li>Move with A and D. Hold E to sample. E at the Relay Spine, the surface antenna, opens a burn. Walk into the station stairs to go back down.</li>
           </ul>
         </div>
       </div>
@@ -326,7 +326,7 @@ export function refreshHud(run) {
       <h3>Channel log</h3>
       ${log}
     </div>
-    <p class="small muted">A D move · hold E sample · E relay burn · hold F plant · E E descend</p>
+    <p class="small muted">A D move · hold E sample · E relay burn · hold F plant · walk into the station to descend</p>
   `;
 
   const live = document.getElementById("live-region");

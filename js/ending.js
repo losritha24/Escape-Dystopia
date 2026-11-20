@@ -1,6 +1,6 @@
 /** Turns hollow flags into a short debrief. The title follows what actually changed. */
 
-import { SCOUTS } from "./data.js?v=14";
+import { SCOUTS } from "./data.js?v=21";
 
 export function buildEnding(run) {
   const h = run.hollow;
@@ -29,7 +29,7 @@ export function buildEnding(run) {
   if (run.endReason === "burnt") {
     paragraphs.push("The glass ridge cooked the suit. You stayed in the UV too long, and the shaft brought a burn back down instead of a scout.");
   } else if (run.endReason === "downed") {
-    paragraphs.push("You did not walk back. The airlock dragged a hypoxic scout down the shaft, and the clinic logged you with the other bad lungs.");
+    paragraphs.push("You did not walk back. The station stairs brought a hypoxic scout down, and the clinic logged you with the other bad lungs.");
   } else if (run.endReason === "timeout") {
     paragraphs.push("The Directorate's window closed on schedule. Whatever you sent is all the Hollow gets until the next shaft cycle.");
   } else {
