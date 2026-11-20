@@ -56,7 +56,7 @@ function hash(n) {
 }
 
 /** Visual-only motion. Gameplay positions stay where the sim put them. */
-const vis = { x: null, t: 0, walk: 0, cam: null, scouts: {} };
+const vis = { x: null, t: 0, walk: 0, cam: null, scouts: {}, pods: 0, podAge: [0, 0, 0], garden: 0 };
 
 function stepVis(run) {
   let dt = run.time - vis.t;
@@ -69,6 +69,13 @@ function stepVis(run) {
   const moving = (vis.x != null && Math.abs(run.player.x - vis.x) > 0.35 && !run.player.channel) || run.entering > 0;
   vis.x = run.player.x;
   if (moving) vis.walk += dt * 8.5;
+  const set = run.podsSet || 0;
+  if (set < vis.pods) vis.podAge = [0, 0, 0];
+  for (let i = 0; i < 3; i++) {
+    vis.podAge[i] = i < set ? Math.min(1, vis.podAge[i] + dt / 1.15) : 0;
+  }
+  vis.pods = set;
+  vis.garden = run.gardenPlanted ? Math.min(1, vis.garden + dt / 1.7) : 0;
   const target = Math.max(0, Math.min(WORLD.width - W, run.player.x - W * 0.42));
   if (vis.cam == null) vis.cam = target;
   else vis.cam += (target - vis.cam) * Math.min(1, dt * 5);
@@ -385,16 +392,18 @@ function drawZones(ctx, cam, run) {
     ctx.moveTo(x + lean * 0.5, groundAt(tx) - 26);
     ctx.quadraticCurveTo(x + 16, groundAt(tx) - 38, x + 20 + lean, groundAt(tx) - 48);
     ctx.stroke();
-    if (run.gardenPlanted && tx < 1860) {
-      const sway = Math.sin(run.time * 1.6 + tx) * 5;
-      ctx.strokeStyle = PALETTE.good;
+    if ((vis.garden || 0) > 0.2 && tx < 1860) {
+      const local = Math.min(1, (vis.garden - 0.2) / 0.8);
+      const sway = Math.sin(run.time * 1.6 + tx) * 5 * local;
+      const gy = groundAt(tx);
+      ctx.strokeStyle = "#6a8f4a";
       ctx.beginPath();
-      ctx.moveTo(x + 10, groundAt(tx));
-      ctx.quadraticCurveTo(x + 10 + sway, groundAt(tx) - 18, x + sway, groundAt(tx) - 32);
+      ctx.moveTo(x + 10, gy);
+      ctx.quadraticCurveTo(x + 10 + sway * 0.4, gy - 16 * local, x + sway, gy - 30 * local);
       ctx.stroke();
       ctx.fillStyle = PALETTE.good;
       ctx.beginPath();
-      ctx.ellipse(x + sway, groundAt(tx) - 34, 5, 3, sway * 0.04, 0, Math.PI * 2);
+      ctx.ellipse(x + sway, gy - 32 * local, 5 * local, 3 * local, sway * 0.04, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -519,23 +528,149 @@ function drawSites(ctx, cam, run) {
       ctx.fillRect(x - 3, gy - 55, 6, 6);
     }
     if (run.outpostPlanted === site.id) {
-      ctx.strokeStyle = PALETTE.teal;
-      ctx.strokeRect(x - 16, gy - 28, 32, 16);
-      if (run.mission === "pods") {
-        ctx.fillStyle = PALETTE.teal;
-        for (let i = 0; i < (run.podsSet || 0); i++) ctx.fillRect(x - 18 + i * 12, gy - 44, 8, 8);
+      if (run.mission === "pods" && run.podsSet > 0) drawCamp(ctx, x, gy);
+      else {
+        ctx.strokeStyle = PALETTE.teal;
+        ctx.strokeRect(x - 16, gy - 28, 32, 16);
       }
     }
-    if (run.gardenPlanted && site.id === "orchard") {
-      ctx.fillStyle = PALETTE.good;
-      ctx.fillRect(x - 10, gy - 70, 4, 12);
-      ctx.fillRect(x + 6, gy - 74, 4, 16);
-    }
+    if (run.gardenPlanted && site.id === "orchard") drawGarden(ctx, x, gy);
 
     ctx.fillStyle = PALETTE.ink;
     ctx.font = "11px ui-monospace, monospace";
     ctx.textAlign = "center";
     ctx.fillText(site.name.toUpperCase(), x, gy - 78);
+  }
+}
+
+function podEase(t) {
+  const c = Math.max(0, Math.min(1, t));
+  const s = c * c * (3 - 2 * c);
+  return Math.min(1.06, s + Math.sin(c * Math.PI) * 0.07);
+}
+
+/** A packed pod swells into a small shelter. u is 0 at the crate and 1 at the house. */
+function drawShelter(ctx, anchor, gy, t, spec) {
+  const u = podEase(t);
+  const w = 16 + (spec.w - 16) * u;
+  const h = 12 + (spec.h - 12) * u;
+  const roof = spec.roof * Math.max(0, (u - 0.28) / 0.72);
+  const x = anchor - w / 2;
+  const y = gy - h;
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.3)";
+  ctx.beginPath();
+  ctx.ellipse(anchor, gy - 1, w * 0.46, 3.2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#6e948c";
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, 2);
+  ctx.fill();
+  ctx.strokeStyle = "#d5ece8";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  if (u > 0.2) {
+    ctx.strokeStyle = "rgba(213, 236, 232, 0.45)";
+    const ribs = 3;
+    for (let i = 1; i < ribs; i++) {
+      const rx = x + (w * i) / ribs;
+      ctx.beginPath();
+      ctx.moveTo(rx, y + 2);
+      ctx.lineTo(rx, gy - 2);
+      ctx.stroke();
+    }
+  }
+  if (roof > 1) {
+    ctx.fillStyle = "#3f615b";
+    ctx.beginPath();
+    ctx.moveTo(x - 3, y + 1);
+    ctx.lineTo(anchor, y - roof);
+    ctx.lineTo(x + w + 3, y + 1);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "#d5ece8";
+    ctx.stroke();
+  }
+  if (u > 0.62) {
+    const a = Math.min(1, (u - 0.62) / 0.28);
+    ctx.globalAlpha = a;
+    const doorW = 6;
+    const doorH = Math.max(8, h * 0.58);
+    const doorX = x + w * spec.door;
+    ctx.fillStyle = "#1a1612";
+    ctx.fillRect(doorX, gy - doorH, doorW, doorH);
+    const winX = x + w * spec.win;
+    ctx.fillStyle = PALETTE.lamp;
+    ctx.fillRect(winX, y + h * 0.28, 7, 5);
+    ctx.globalAlpha = a * 0.28;
+    ctx.beginPath();
+    ctx.arc(winX + 3.5, y + h * 0.28 + 2, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+
+function drawGarden(ctx, x, gy) {
+  const u = podEase(vis.garden || 0);
+  if (u <= 0) return;
+  const bed = 96 * Math.min(1, u * 1.6);
+  ctx.fillStyle = "#3a2a18";
+  ctx.fillRect(x - 46, gy - 5, bed, 5);
+  ctx.fillStyle = "#4a3424";
+  for (let i = 0; i < 6; i++) ctx.fillRect(x - 42 + i * 14, gy - 5, 7, 2);
+  const plants = [
+    { dx: -34, h: 14, leaves: 1 },
+    { dx: -20, h: 26, leaves: 2 },
+    { dx: -6, h: 16, leaves: 1 },
+    { dx: 8, h: 34, leaves: 2 },
+    { dx: 22, h: 20, leaves: 1 },
+    { dx: 36, h: 28, leaves: 2 },
+    { dx: 48, h: 15, leaves: 1 },
+  ];
+  plants.forEach((plant, i) => {
+    const start = 0.08 + i * 0.07;
+    const local = Math.max(0, Math.min(1, (u - start) / (1 - start)));
+    if (local <= 0) return;
+    const h = plant.h * local;
+    const px = x + plant.dx;
+    const sway = Math.sin(vis.t * 1.5 + i) * 2.2 * local;
+    ctx.strokeStyle = "#5f7d3c";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(px, gy - 3);
+    ctx.quadraticCurveTo(px + sway * 0.35, gy - h * 0.55, px + sway, gy - h);
+    ctx.stroke();
+    if (local < 0.4) return;
+    const leaf = (local - 0.4) / 0.6;
+    ctx.fillStyle = PALETTE.good;
+    ctx.beginPath();
+    ctx.ellipse(px + sway, gy - h - 1, 3.2 * leaf + 1, 2.2 * leaf + 0.5, sway * 0.08, 0, Math.PI * 2);
+    ctx.fill();
+    if (plant.leaves < 2 || local < 0.65) return;
+    ctx.beginPath();
+    ctx.ellipse(px + sway - 5, gy - h * 0.62, 3.4 * leaf, 1.6 * leaf, -0.7, 0, Math.PI * 2);
+    ctx.ellipse(px + sway + 5, gy - h * 0.46, 3 * leaf, 1.5 * leaf, 0.6, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function drawCamp(ctx, x, gy) {
+  const homes = [
+    { at: x - 64, w: 36, h: 26, roof: 12, door: 0.18, win: 0.58 },
+    { at: x + 20, w: 32, h: 30, roof: 14, door: 0.4, win: 0.16 },
+    { at: x + 68, w: 38, h: 24, roof: 11, door: 0.62, win: 0.2 },
+  ];
+  const placed = homes.filter((_, i) => vis.podAge[i] > 0);
+  if (!placed.length) return;
+  const left = placed[0].at - 22;
+  const right = placed[placed.length - 1].at + 22;
+  ctx.fillStyle = "#2c261f";
+  ctx.fillRect(left, gy - 5, right - left, 5);
+  ctx.fillStyle = "#3a332b";
+  ctx.fillRect(left, gy - 5, right - left, 2);
+  for (let i = 0; i < placed.length; i++) {
+    drawShelter(ctx, placed[i].at, gy, vis.podAge[i], placed[i]);
   }
 }
 

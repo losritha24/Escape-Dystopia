@@ -8,10 +8,10 @@
 import { playSfx } from "./audio.js?v=17";
 import { bindInput, endFrame, heldKey, pressed } from "./input.js?v=14";
 import { bindMusic, syncScore } from "./music.js?v=17";
-import { render } from "./render.js?v=25";
+import { render } from "./render.js?v=28";
 import { bindScreens, closeSend, openSend, refreshHud, showPhase } from "./screens.js?v=23";
 import { createGame, createPodRun, createRun, emptyPack, keepProgress, resetGame } from "./state.js?v=21";
-import { patrolActive, updateRun } from "./sim.js?v=24";
+import { patrolActive, updateRun } from "./sim.js?v=28";
 
 const game = createGame();
 

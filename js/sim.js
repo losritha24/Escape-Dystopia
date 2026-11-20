@@ -717,7 +717,10 @@ function updatePodRun(run, input, dt) {
     if (run.downTimer <= 0) finish(run, "downed");
     return;
   }
-  if (run.podsSet >= 3 && run.gardenPlanted) finish(run, "pods");
+  if (run.podsSet >= 3 && run.gardenPlanted && !run.finished) {
+    run.gardenShown = (run.gardenShown || 0) + dt;
+    if (run.gardenShown > 1.9) finish(run, "pods");
+  }
 }
 
 function holdPodChannel(run, input, dt, site) {
